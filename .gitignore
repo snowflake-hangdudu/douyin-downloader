@@ -1,0 +1,12 @@
+douyin-downloader.zip
+*.xpi
+
+test/node_modules/
+test/_out/
+
+__pycache__/
+*.pyc
+
+.DS_Store
+Thumbs.db
+_metadata/

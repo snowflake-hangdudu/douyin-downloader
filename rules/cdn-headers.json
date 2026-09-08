@@ -1,0 +1,58 @@
+[
+  {
+    "id": 1,
+    "priority": 1,
+    "action": {
+      "type": "modifyHeaders",
+      "requestHeaders": [
+        { "header": "Referer", "operation": "set", "value": "https://www.douyin.com/" }
+      ]
+    },
+    "condition": {
+      "urlFilter": "||douyinvod.com",
+      "resourceTypes": ["media", "xmlhttprequest", "other", "image"]
+    }
+  },
+  {
+    "id": 2,
+    "priority": 1,
+    "action": {
+      "type": "modifyHeaders",
+      "requestHeaders": [
+        { "header": "Referer", "operation": "set", "value": "https://www.douyin.com/" }
+      ]
+    },
+    "condition": {
+      "urlFilter": "||douyinpic.com",
+      "resourceTypes": ["image", "other", "xmlhttprequest"]
+    }
+  },
+  {
+    "id": 3,
+    "priority": 1,
+    "action": {
+      "type": "modifyHeaders",
+      "requestHeaders": [
+        { "header": "Referer", "operation": "set", "value": "https://www.douyin.com/" }
+      ]
+    },
+    "condition": {
+      "urlFilter": "||byteimg.com",
+      "resourceTypes": ["image", "other", "xmlhttprequest"]
+    }
+  },
+  {
+    "id": 4,
+    "priority": 1,
+    "action": {
+      "type": "modifyHeaders",
+      "requestHeaders": [
+        { "header": "Referer", "operation": "set", "value": "https://www.douyin.com/" }
+      ]
+    },
+    "condition": {
+      "urlFilter": "||bytecdn.cn",
+      "resourceTypes": ["media", "xmlhttprequest", "other"]
+    }
+  }
+]
