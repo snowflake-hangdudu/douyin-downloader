@@ -1,6 +1,6 @@
 # 抖音视频下载助手 - douyin
 
-Microsoft Edge / Chrome 扩展（Manifest V3），保存当前浏览器可访问的视频、封面与合集列表。版本 1.0.1。
+Microsoft Edge / Chrome 扩展（Manifest V3），保存当前浏览器可访问的视频、封面与合集列表。版本 1.0.2。
 
 - 仓库：https://github.com/snowflake-hangdudu/douyin-downloader
 - 验收：[docs/validation-2026-09-14.md](docs/validation-2026-09-14.md)
@@ -28,7 +28,7 @@ Microsoft Edge / Chrome 扩展（Manifest V3），保存当前浏览器可访问
 
 1. 打开 `edge://extensions`（Chrome 使用 `chrome://extensions`）。
 2. 已加载本目录时，点击「抖音视频下载助手 - douyin」的重新加载；首次开发加载选择本目录。
-3. 回到抖音视频页按 F5，打开右下角面板，确认版本为 **1.0.1**。
+3. 回到抖音视频页按 F5，打开右下角面板，确认版本为 **1.0.2**。
 4. 选择清晰度并下载；以浏览器完成状态和实际文件为准。
 
 ## 开发验证

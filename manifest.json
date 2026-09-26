@@ -1,8 +1,9 @@
 {
   "manifest_version": 3,
-  "name": "抖音视频下载助手 - douyin",
-  "version": "1.0.1",
-  "description": "保存抖音网页版当前可访问的视频与封面，支持合集列表下载、常用清晰度、暂停续传。",
+  "default_locale": "zh_CN",
+  "name": "__MSG_extName__",
+  "version": "1.0.2",
+  "description": "__MSG_extDesc__",
   "permissions": [
     "storage",
     "activeTab",

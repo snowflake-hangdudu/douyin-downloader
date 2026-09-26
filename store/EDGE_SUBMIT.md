@@ -1,10 +1,10 @@
-# Microsoft Edge Add-ons 上架填写参考（1.0.1）
+# Microsoft Edge Add-ons 上架填写参考（1.0.2）
 
 ## 提交前检查
 
 - 项目根目录运行 `python scripts/pack.py`，上传 **`douyin-downloader-chrome.zip`**；不要提交源码目录。
 - Firefox 另用 `python scripts/pack_firefox.py` 生成 xpi。
-- 上传前确认 `manifest.json` 版本为 **`1.0.1`**。
+- 上传前确认 `manifest.json` 版本为 **`1.0.2`**。
 - 隐私政策：https://snowflake-hangdudu.github.io/douyin-downloader/
 - 常见问题：https://snowflake-hangdudu.github.io/douyin-downloader/faq.html
 - 商店截图见 `store/SCREENSHOTS.md`（需先拍真机图并运行 `_format_store_assets.py`）。

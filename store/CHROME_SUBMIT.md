@@ -1,4 +1,4 @@
-# Chrome Web Store 上架填写参考（1.0.1）
+# Chrome Web Store 上架填写参考（1.0.2）
 
 ## 打包
 
