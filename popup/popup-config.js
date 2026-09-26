@@ -1,5 +1,5 @@
 window.DOWNLOADER_POPUP_CONFIG = {
-  title: '抖音下载助手',
+  title: '抖音视频下载助手',
   getInfoType: 'DOUYIN_DL_GET_INFO',
   openPanelType: 'DOUYIN_DL_OPEN_PANEL',
   faqUrl: 'https://snowflake-hangdudu.github.io/douyin-downloader/faq.html',
@@ -15,19 +15,19 @@ window.DOWNLOADER_POPUP_CONFIG = {
   },
   readyTips: [
     '实际保存请点页面右下角图标打开的面板',
-    '当前只支持单个视频，不支持用户页批量下载',
+    '带合集的视频可切换「列表下载」批量保存',
     '安装或更新后请先 F5 刷新当前视频页'
   ],
   empty: {
     detect: '未识别到单个视频页',
     title: '请先打开抖音视频',
-    lead: '打开 www.douyin.com 的单个视频页，或在推荐流里点开一条视频后再保存。',
+    lead: '打开 www.douyin.com 的单个视频页，或在搜索/推荐里点开一条视频后再保存。',
     steps: [
-      '打开抖音网页版的单个视频页，按 F5 刷新',
+      '打开抖音视频页或搜索弹窗，按 F5 刷新',
       '点击页面右下角图标打开面板',
-      '选择清晰度后保存 MP4'
+      '单视频选清晰度保存；合集切「列表下载」'
     ],
-    tags: ['单个视频', '清晰度', '封面'],
+    tags: ['单视频', '合集列表', '封面'],
     homeUrl: 'https://www.douyin.com/',
     homeLabel: '打开抖音'
   },

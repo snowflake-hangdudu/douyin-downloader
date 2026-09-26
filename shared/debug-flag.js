@@ -1,4 +1,4 @@
 (function initDebugFlag(root) {
   root.DownloaderKit = root.DownloaderKit || {};
-  root.DownloaderKit.DEBUG = true; // @pack:debug
+  root.DownloaderKit.DEBUG = false; // @pack:debug
 })(typeof globalThis !== 'undefined' ? globalThis : this);

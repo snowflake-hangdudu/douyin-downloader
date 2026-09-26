@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>抖音下载助手 - 隐私政策</title>
+  <title>抖音视频下载助手 - douyin - 隐私政策</title>
   <style>
     body { font-family: -apple-system, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif; max-width: 720px; margin: 40px auto; padding: 0 20px; line-height: 1.7; color: #1e293b; }
     h1 { font-size: 22px; }
@@ -14,10 +14,10 @@
   </style>
 </head>
 <body>
-  <h1>抖音下载助手 · 隐私政策</h1>
-  <p class="muted">最后更新：2026-09-09 · 版本 1.0.0 · <a href="faq.html">常见问题</a></p>
+  <h1>抖音视频下载助手 - douyin · 隐私政策</h1>
+  <p class="muted">最后更新：2026-09-14 · 版本 1.0.1 · <a href="faq.html">常见问题</a></p>
 
-  <p>本扩展（「抖音下载助手」）由个人开发者提供。我们重视您的隐私。本政策说明本扩展如何处理信息。</p>
+  <p>本扩展（「抖音视频下载助手 - douyin」）由个人开发者提供。我们重视您的隐私。本政策说明本扩展如何处理信息。</p>
 
   <h2>1. 我们收集哪些数据</h2>
   <p><strong>我们不收集、不存储、不上传、不出售任何个人数据。</strong></p>
@@ -30,18 +30,23 @@
 
   <h2>2. 本地处理说明</h2>
   <p>本扩展仅在您访问抖音网页版相关页面时运行。识别与保存都在<strong>您的浏览器本地</strong>完成。下载文件保存到您设备上的浏览器默认下载目录。</p>
-  <p>扩展只保存当前页面已经加载、浏览器本身可访问的公开内容，不绕过登录、付费或私密限制。</p>
+  <p>扩展只保存当前页面已经加载、浏览器本身可访问的公开内容，不绕过登录、付费或私密限制。单视频与合集列表下载均仅在您主动点击后开始。</p>
+  <p>面板中的设置用于在本地保存主题与文件名模板。点击「反馈邮箱」时，扩展会把固定反馈邮箱复制到剪贴板；扩展不会读取剪贴板内容。若复制不可用，会尝试打开邮件客户端。</p>
 
   <h2>3. 权限用途</h2>
   <ul>
-    <li><strong>activeTab / 页面脚本</strong>：识别当前抖音视频页并展示面板</li>
+    <li><strong>activeTab / 页面脚本</strong>：识别当前抖音视频页、合集列表，并展示下载面板</li>
     <li><strong>downloads</strong>：把已获取的视频 / 封面保存到本机</li>
-    <li><strong>storage</strong>：仅在本地保存公告缓存、下载历史与评分偏好</li>
+    <li><strong>storage</strong>：仅在本地保存公告缓存、下载偏好与评分状态</li>
+    <li><strong>clipboardWrite</strong>：仅在您点击反馈邮箱按钮时复制反馈邮箱；不读取剪贴板</li>
     <li><strong>declarativeNetRequest</strong>：给封面等资源补上页面同源 Referer，避免防盗链失败</li>
-    <li><strong>配置站</strong>：读取公告、开发合作与商店评分开关</li>
+    <li><strong>配置站</strong>：读取公告、开发合作与商店评分开关（静态 JSON，不执行远程代码）</li>
   </ul>
 
-  <h2>4. 联系</h2>
+  <h2>4. 第三方域名</h2>
+  <p>为完成下载，扩展会在您主动保存时访问抖音页面已暴露的 CDN 地址（如 douyinvod.com、douyinpic.com 等）。这些请求仅用于获取您选择保存的媒体文件，不包含用户身份上报。</p>
+
+  <h2>5. 联系</h2>
   <p>反馈邮箱：<a href="mailto:hangdudu0@agent.qq.com">hangdudu0@agent.qq.com</a></p>
 </body>
 </html>

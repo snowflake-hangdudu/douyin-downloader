@@ -18,6 +18,7 @@
     const panel = kit.panel.create({
       title: opts.title,
       idPrefix: opts.idPrefix,
+      theme: opts.theme,
       version,
       iconUrl: opts.iconUrl || api.runtime.getURL('icons/icon128.png'),
       fabLabel: opts.fabLabel,
@@ -27,9 +28,17 @@
       onOpenSheet: openSheet,
       onShowHome() { currentSheet = ''; },
       onFillSheet(body, key, data) {
-        if (key === 'notice') kit.notice.fillNoticeBody(body, data);
-        else kit.dom.fillTextLines(body, data.body || '暂无内容');
+        if (key === 'notice') {
+          kit.notice.fillNoticeBody(body, data, { coop: remoteContent.coop });
+        } else if (key === 'settings') {
+          opts.onFillSettings?.(body, data);
+        } else if (key === 'donate') {
+          opts.onFillDonate?.(body);
+        } else {
+          kit.dom.fillTextLines(body, data.body || '暂无内容');
+        }
       },
+      onFeedback: opts.onFeedback,
       onRatingAction: (action) => rating.handleAction(action)
     });
 
@@ -69,12 +78,21 @@
 
     function applyRemoteButtons() {
       panel.setSheetEnabled('notice', remoteContent.notice?.enabled !== false);
-      panel.setSheetEnabled('coop', remoteContent.coop?.enabled !== false);
       if (!rating.enabled()) panel.setRating({ visible: false });
     }
 
     function openSheet(key) {
+      if (key === 'coop') key = 'notice';
+      if (key === 'donate') {
+        currentSheet = key;
+        panel.openSheet(key, { title: '感谢您的支持与赞赏' });
+        return;
+      }
       currentSheet = key;
+      if (key === 'settings') {
+        panel.openSheet(key, { title: '设置', subtitle: '主题与文件名会同步到下载面板' });
+        return;
+      }
       panel.openSheet(key, remoteContent[key] || defaults[key]);
       loadRemote().then((data) => {
         if (currentSheet === key) panel.openSheet(key, data[key] || defaults[key]);
@@ -89,7 +107,7 @@
       }
       if (message?.type === messages.openSheet) {
         panel.open();
-        openSheet(message.sheet === 'coop' ? 'coop' : 'notice');
+        openSheet(message.sheet === 'settings' ? 'settings' : 'notice');
       }
       return undefined;
     });

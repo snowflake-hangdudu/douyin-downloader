@@ -1,9 +1,16 @@
 {
   "manifest_version": 3,
-  "name": "抖音下载助手",
-  "version": "1.0.0",
-  "description": "在抖音网页版单个视频页保存当前可访问的视频与封面。",
-  "permissions": ["storage", "activeTab", "downloads", "declarativeNetRequest", "declarativeNetRequestWithHostAccess"],
+  "name": "抖音视频下载助手 - douyin",
+  "version": "1.0.1",
+  "description": "保存抖音网页版当前可访问的视频与封面，支持合集列表下载、常用清晰度、暂停续传。",
+  "permissions": [
+    "storage",
+    "activeTab",
+    "downloads",
+    "clipboardWrite",
+    "declarativeNetRequest",
+    "declarativeNetRequestWithHostAccess"
+  ],
   "host_permissions": [
     "https://www.douyin.com/*",
     "https://*.douyin.com/*",
@@ -17,7 +24,7 @@
     "https://*.byteimg.com/*",
     "https://*.snssdk.com/*",
     "https://*.amemv.com/*",
-    "https://download-config-hub.nutmeg-venus-6882.chatgpt.site/*"
+    "http://124.222.62.190:8081/*"
   ],
   "declarative_net_request": {
     "rule_resources": [
@@ -37,7 +44,10 @@
         "https://www.douyin.com/*",
         "https://www.iesdouyin.com/*"
       ],
-      "js": ["lib/aweme-parse.js", "content/page-agent.js"],
+      "js": [
+        "lib/aweme-parse.js",
+        "content/page-agent.js"
+      ],
       "run_at": "document_start",
       "world": "MAIN"
     },
@@ -57,15 +67,22 @@
         "shared/panel.js",
         "shared/shell.js",
         "lib/aweme-parse.js",
+        "lib/download-client.js",
+        "lib/filename.js",
+        "lib/download-settings.js",
         "content/content.js"
       ],
-      "css": ["shared/panel.css", "content/content.css"],
+      "css": [
+        "shared/panel.css",
+        "content/content.css",
+        "shared/design-system.css"
+      ],
       "run_at": "document_idle"
     }
   ],
   "action": {
     "default_popup": "popup/popup.html",
-    "default_title": "抖音下载助手",
+    "default_title": "抖音视频下载助手 - douyin",
     "default_icon": {
       "16": "icons/icon16.png",
       "32": "icons/icon32.png",
@@ -81,7 +98,15 @@
   },
   "web_accessible_resources": [
     {
-      "resources": ["icons/icon48.png", "icons/icon128.png"],
+      "resources": [
+        "icons/icon48.png",
+        "icons/icon128.png",
+        "assets/donate-wechat.jpg",
+        "assets/donate-alipay.jpg",
+        "shared/themes.json",
+        "lib/aweme-parse.js",
+        "content/page-agent.js"
+      ],
       "matches": [
         "https://www.douyin.com/*",
         "https://www.iesdouyin.com/*"

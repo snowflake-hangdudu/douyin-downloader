@@ -1,4 +1,5 @@
 douyin-downloader.zip
+douyin-downloader-chrome.zip
 *.xpi
 
 test/node_modules/
@@ -10,3 +11,4 @@ __pycache__/
 .DS_Store
 Thumbs.db
 _metadata/
+node_modules/

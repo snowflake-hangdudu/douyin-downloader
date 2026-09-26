@@ -19,6 +19,8 @@
     const rootEl = doc.createElement('div');
     rootEl.className = 'dl-kit';
     rootEl.id = idPrefix + '-root';
+    rootEl.dataset.theme = opts.theme || 'default';
+    rootEl.dataset.debug = opts.showDebug ? '1' : '0';
 
     const wrap = doc.createElement('div');
     wrap.className = 'dl-kit-panel';
@@ -124,7 +126,6 @@
 
     body.append(home);
     if (debugEl) body.append(debugEl);
-    body.append(page);
 
     const rating = doc.createElement('div');
     rating.className = 'dl-kit-store-rating hidden';
@@ -152,21 +153,35 @@
     ratingActions.append(ratingLater, ratingNever);
     rating.append(ratingPrimary, ratingActions);
 
-    function sheetLink(key, label) {
+    const ICONS = {
+      notice: '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 11v2a1 1 0 0 0 1 1h1l6 4V6L5 10H4a1 1 0 0 0-1 1z"/><path d="M16.5 8.5a5 5 0 0 1 0 7"/><path d="M18.5 6.5a8 8 0 0 1 0 11"/></svg>',
+      settings: '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16"/><circle cx="9" cy="6" r="2"/><circle cx="15" cy="12" r="2"/><circle cx="11" cy="18" r="2"/></svg>',
+      feedback: '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>',
+      donate: '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.7l-1.1-1.1a5.5 5.5 0 0 0-7.8 7.8L12 21l8.8-8.6a5.5 5.5 0 0 0 0-7.8z"/></svg>'
+    };
+
+    function footerAction(key, label, icon) {
       const btn = doc.createElement('button');
       btn.type = 'button';
-      btn.className = 'dl-kit-footer-link';
-      btn.dataset.sheet = key;
-      btn.textContent = label;
+      btn.className = 'dl-kit-footer-action';
+      if (key) btn.dataset.sheet = key;
+      if (icon) btn.insertAdjacentHTML('afterbegin', icon);
+      const text = doc.createElement('span');
+      text.className = 'dl-kit-footer-label';
+      text.textContent = label;
+      btn.appendChild(text);
       return btn;
     }
 
     function externalLink(href, label) {
       const a = doc.createElement('a');
-      a.className = 'dl-kit-footer-link';
+      a.className = 'dl-kit-footer-action';
       a.target = '_blank';
       a.rel = 'noopener noreferrer';
-      a.textContent = label;
+      const text = doc.createElement('span');
+      text.className = 'dl-kit-footer-label';
+      text.textContent = label;
+      a.appendChild(text);
       if (href) dom.safeExternalLink(a, href);
       return a;
     }
@@ -175,20 +190,40 @@
     footerEl.className = 'dl-kit-footer';
     const links = doc.createElement('div');
     links.className = 'dl-kit-footer-links';
-    const faqLink = externalLink(footer.faqUrl, footer.faqLabel || '常见问题');
-    const privacyLink = externalLink(footer.privacyUrl, footer.privacyLabel || '隐私政策');
-    const noticeLink = sheetLink('notice', footer.noticeLabel || '公告');
-    const coopLink = sheetLink('coop', footer.coopLabel || '开发合作');
-    const feedback = doc.createElement('a');
-    feedback.className = 'dl-kit-feedback';
+    const noticeLink = footerAction('notice', footer.noticeLabel || '公告', ICONS.notice);
+    const settingsLink = footerAction('settings', footer.settingsLabel || '设置', ICONS.settings);
     const email = footer.email || 'hangdudu0@agent.qq.com';
     const subject = footer.subject || (title + '反馈');
-    feedback.textContent = (footer.feedbackLabel || '反馈邮箱：') + email;
-    dom.safeExternalLink(feedback, 'mailto:' + email + '?subject=' + encodeURIComponent(subject));
-    links.append(faqLink, privacyLink, noticeLink, coopLink, feedback);
+    const feedback = doc.createElement(footer.feedbackMode === 'copy' ? 'button' : 'a');
+    feedback.className = 'dl-kit-footer-action dl-kit-feedback';
+    if (footer.feedbackMode === 'copy') {
+      feedback.type = 'button';
+      feedback.dataset.feedbackEmail = email;
+      feedback.title = '点击复制反馈邮箱 ' + email;
+      feedback.insertAdjacentHTML('afterbegin', ICONS.feedback);
+      const feedbackLabel = doc.createElement('span');
+      feedbackLabel.className = 'dl-kit-feedback-label';
+      feedbackLabel.textContent = footer.feedbackShortLabel || '反馈';
+      feedback.appendChild(feedbackLabel);
+    } else {
+      dom.safeExternalLink(feedback, 'mailto:' + email + '?subject=' + encodeURIComponent(subject));
+      feedback.textContent = footer.feedbackLabel || ('反馈邮箱：' + email);
+    }
+    links.append(noticeLink);
+    if (footer.showSettings === true) links.append(settingsLink);
+    if (footer.showHelpLinks !== false) {
+      links.append(externalLink(footer.faqUrl, footer.faqLabel || '常见问题'));
+      links.append(externalLink(footer.privacyUrl, footer.privacyLabel || '隐私政策'));
+    }
+    links.append(feedback);
+    if (footer.showDonate) {
+      const donateLink = footerAction('donate', footer.donateLabel || '赞赏', ICONS.donate);
+      donateLink.title = '自愿赞赏';
+      links.append(donateLink);
+    }
     footerEl.append(links);
 
-    menu.append(header, body, rating, footerEl);
+    menu.append(header, body, page, rating, footerEl);
     wrap.append(fab, menu);
     rootEl.appendChild(wrap);
 
@@ -199,12 +234,14 @@
     function open() {
       menu.classList.remove('hidden');
       fab.setAttribute('aria-expanded', 'true');
+      close.focus?.({ preventScroll: true });
     }
 
     function hide() {
       menu.classList.add('hidden');
       fab.setAttribute('aria-expanded', 'false');
       showHome();
+      fab.focus?.({ preventScroll: true });
     }
 
     function toggle() {
@@ -214,6 +251,7 @@
 
     function showHome() {
       page.classList.add('hidden');
+      body.classList.remove('hidden');
       home.classList.remove('hidden');
       menu.classList.remove('is-page');
       opts.onShowHome?.();
@@ -221,8 +259,11 @@
 
     function openSheet(key, item) {
       const data = item || {};
-      pageTitle.textContent = data.title || (key === 'coop' ? '开发合作' : '公告');
-      if (data.updated) {
+      pageTitle.textContent = data.title || (key === 'settings' ? '设置' : '公告');
+      if (data.subtitle) {
+        pageDate.textContent = data.subtitle;
+        pageDate.hidden = false;
+      } else if (data.updated) {
         pageDate.textContent = '更新：' + data.updated;
         pageDate.hidden = false;
       } else {
@@ -232,7 +273,7 @@
       dom.clearNode(pageBody);
       if (typeof opts.onFillSheet === 'function') opts.onFillSheet(pageBody, key, data);
       else dom.fillTextLines(pageBody, data.body || '暂无内容');
-      home.classList.add('hidden');
+      body.classList.add('hidden');
       page.classList.remove('hidden');
       menu.classList.add('is-page');
       open();
@@ -255,12 +296,29 @@
     fab.addEventListener('click', toggle);
     close.addEventListener('click', hide);
     pageBack.addEventListener('click', showHome);
+    const onKeydown = (event) => {
+      if (event.key !== 'Escape' || !isOpen()) return;
+      event.preventDefault();
+      if (!page.classList.contains('hidden')) {
+        showHome();
+        return;
+      }
+      hide();
+    };
+    doc.addEventListener('keydown', onKeydown);
     footerEl.querySelectorAll('[data-sheet]').forEach((btn) => {
       btn.addEventListener('click', (event) => {
         event.preventDefault();
         opts.onOpenSheet?.(btn.dataset.sheet);
       });
     });
+    if (footer.feedbackMode === 'copy') {
+      feedback.addEventListener('click', (event) => {
+        event.preventDefault();
+        if (!event.isTrusted) return;
+        opts.onFeedback?.(email, feedback);
+      });
+    }
     rating.querySelectorAll('[data-action]').forEach((btn) => {
       btn.addEventListener('click', () => opts.onRatingAction?.(btn.dataset.action));
     });
@@ -277,7 +335,10 @@
       openSheet,
       setSheetEnabled,
       setRating,
-      destroy: () => rootEl.remove()
+      destroy: () => {
+        doc.removeEventListener('keydown', onKeydown);
+        rootEl.remove();
+      }
     };
   }
 

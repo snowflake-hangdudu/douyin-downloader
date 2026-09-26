@@ -1,6 +1,8 @@
 const EXT = typeof browser !== 'undefined' ? browser : chrome;
 const VERSION = EXT.runtime.getManifest().version;
 const CONFIG = globalThis.DOWNLOADER_POPUP_CONFIG || {};
+const THEME_KEY = 'douyinDlTheme_v1';
+const THEMES = new Set(['douyin', 'tokyo-love', 'manchester-sea', 'chinese-odyssey']);
 const $ = (id) => document.getElementById(id);
 
 $('app-version').textContent = 'v' + VERSION;
@@ -66,8 +68,8 @@ function applyEmptyCopy() {
     '在面板里完成保存'
   ], 'popup-step');
   fillList($('empty-tags'), empty.tags || [], 'popup-feature-tag');
-  if (CONFIG.faqUrl) $('empty-faq').href = CONFIG.faqUrl;
-  if (CONFIG.privacyUrl) $('empty-privacy').href = CONFIG.privacyUrl;
+  if (CONFIG.faqUrl) $('popup-faq').href = CONFIG.faqUrl;
+  if (CONFIG.privacyUrl) $('popup-privacy').href = CONFIG.privacyUrl;
   const go = $('btn-go-site');
   if (empty.homeUrl) {
     go.href = empty.homeUrl;
@@ -79,6 +81,16 @@ function applyEmptyCopy() {
   if (CONFIG.error?.title) $('error-title').textContent = CONFIG.error.title;
   if (CONFIG.error?.hint) $('error-hint').textContent = CONFIG.error.hint;
 }
+
+function applyTheme(theme) {
+  const popup = document.querySelector('.dl-popup');
+  if (popup) popup.dataset.theme = THEMES.has(theme) ? theme : 'douyin';
+}
+
+EXT.storage.local.get(THEME_KEY, (stored) => applyTheme(stored?.[THEME_KEY]));
+EXT.storage.onChanged?.addListener?.((changes, areaName) => {
+  if (areaName === 'local' && changes[THEME_KEY]) applyTheme(changes[THEME_KEY].newValue);
+});
 
 function renderReady(info) {
   if (typeof CONFIG.renderReady === 'function') {

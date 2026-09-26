@@ -1,29 +1,20 @@
-"""从 assets/icon-source.png 生成扩展图标，目录约定与 B 站下载器一致。"""
-from pathlib import Path
+"""Generate Douyin icons from shared-download-kit/brand-assets/douyin.png.
 
-from PIL import Image, ImageFilter
+Authoritative source is the kit brand-asset (vertical play box + cyan/pink bars),
+not the obsolete phone-outline art.
+"""
+from pathlib import Path
+import sys
 
 ROOT = Path(__file__).resolve().parents[1]
-SRC = ROOT / "assets" / "icon-source.png"
-OUT = ROOT / "icons"
-SIZES = (16, 32, 48, 128)
+KIT_SCRIPTS = ROOT.parent / "shared-download-kit" / "scripts"
+sys.path.insert(0, str(KIT_SCRIPTS))
+
+from gen_platform_icons import generate_for  # noqa: E402
 
 
 def main() -> None:
-    if not SRC.is_file():
-        raise SystemExit("缺少源图: " + str(SRC))
-    OUT.mkdir(parents=True, exist_ok=True)
-    source = Image.open(SRC).convert("RGBA")
-    for size in SIZES:
-        if size <= 32:
-            img = source.resize((size * 4, size * 4), Image.Resampling.LANCZOS)
-            img = img.filter(ImageFilter.UnsharpMask(radius=1.1, percent=140, threshold=2))
-            img = img.resize((size, size), Image.Resampling.LANCZOS)
-        else:
-            img = source.resize((size, size), Image.Resampling.LANCZOS)
-        dest = OUT / f"icon{size}.png"
-        img.save(dest, "PNG", optimize=True)
-        print("OK", dest.name)
+    generate_for("douyin", ROOT)
 
 
 if __name__ == "__main__":

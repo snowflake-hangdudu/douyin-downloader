@@ -10,7 +10,13 @@ DEBUG_FLAG = re.compile(
     r"(DownloaderKit\.DEBUG\s*=\s*)(?:true|false)(\s*;\s*//\s*@pack:debug)"
 )
 EXCLUDE_PARTS = {"test", "store", "scripts", "node_modules", ".git", "_metadata"}
-EXCLUDE_NAMES = {".gitignore"}
+EXCLUDE_NAMES = {
+    ".gitignore",
+    "package.json",
+    "package-lock.json",
+    "douyin-downloader-chrome.zip",
+    "douyin-downloader-firefox.xpi",
+}
 
 
 def should_include(path: Path, root: Path, out: Path) -> bool:

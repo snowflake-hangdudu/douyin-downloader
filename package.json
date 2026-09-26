@@ -1,0 +1,11 @@
+{
+  "name": "douyin-downloader",
+  "version": "1.0.1",
+  "private": true,
+  "scripts": {
+    "test": "node --test test/*.test.mjs"
+  },
+  "devDependencies": {
+    "jsdom": "26.1.0"
+  }
+}

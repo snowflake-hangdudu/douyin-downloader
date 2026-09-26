@@ -1,0 +1,14 @@
+抖音视频下载助手 — 手工测试链接
+版本：1.0.0
+更新：2026-09-14
+
+【视频详情】
+https://www.douyin.com/search/%E4%B8%9C%E4%BA%AC%E7%88%B1%E6%83%85%E6%95%85%E4%BA%8B%E5%85%A8%E5%89%A7%E8%A7%A3%E8%AF%B4?modal_id=7319527000799022388&type=general
+
+【列表安装】
+https://www.douyin.com/search/%E4%B8%9C%E4%BA%AC%E7%88%B1%E6%83%85%E6%95%85%E4%BA%8B%E5%85%A8%E5%89%A7%E8%A7%A3%E8%AF%B4?modal_id=7634880373175913755&type=general
+https://www.douyin.com/search/%E4%B8%9C%E4%BA%AC%E7%88%B1%E6%83%85%E6%95%85%E4%BA%8B%E5%85%A8%E5%89%A7%E8%A7%A3%E8%AF%B4?modal_id=7635978768972123418&type=general
+
+使用说明：
+1. 单视频：打开链接 → 播放几秒 → 打开插件面板，应识别到清晰度。
+2. 列表：打开链接 → 点页面右侧「合集」标签 → 插件切「列表下载」→ 点「刷新列表」。

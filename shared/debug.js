@@ -6,13 +6,13 @@
 })(typeof globalThis !== 'undefined' ? globalThis : this, function debugFactory() {
   function isEnabled(explicit, api) {
     if (explicit === false) return false;
-    if (globalThis.DownloaderKit?.DEBUG === false) return false;
     const runtime = globalThis.DownloaderKit?.runtime;
     try {
       if (runtime?.isStoreBuild(api)) return false;
-    } catch (_) {}
+    } catch (_) { /* ignore */ }
     if (explicit === true) return true;
-    return globalThis.DownloaderKit?.DEBUG !== false;
+    // 仅本地开发显式打开；打包脚本会把 DEBUG 写成 false。
+    return globalThis.DownloaderKit?.DEBUG === true;
   }
 
   function noop() {

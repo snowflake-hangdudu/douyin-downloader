@@ -9,11 +9,26 @@
     recent: '最近更新',
     knownIssues: '已知问题',
     roadmap: '开发计划',
-    feedback: '待反馈需求',
-    upcoming: '待更新需求',
-    planned: '待做需求',
+    feedback: '征集中',
+    upcoming: '即将更新',
+    planned: '计划中',
     empty: '暂无新公告'
   };
+
+  function appendCoopSection(el, coop, opts) {
+    if (coop?.enabled === false) return;
+    const dom = opts.dom || globalThis.DownloaderKit?.dom;
+    if (!dom) return;
+    const prefix = opts.classPrefix || 'dl-kit';
+    const lines = dom.toLines(coop?.body);
+    if (!lines.length) return;
+    const section = el.ownerDocument.createElement('div');
+    section.className = prefix + '-notice-section ' + prefix + '-notice-coop';
+    const title = String(coop?.title || '开发合作').trim() || '开发合作';
+    dom.appendTextElement(section, 'div', prefix + '-notice-section-title', title);
+    lines.forEach((line) => dom.appendTextElement(section, 'div', prefix + '-notice-coop-line', line));
+    el.appendChild(section);
+  }
 
   function fillNoticeBody(el, notice, options) {
     const opts = options || {};
@@ -21,6 +36,7 @@
     if (!el || !dom) return;
     const labels = { ...DEFAULT_LABELS, ...(opts.labels || {}) };
     const prefix = opts.classPrefix || 'dl-kit';
+    const coop = opts.coop;
     dom.clearNode(el);
 
     function section(title, value) {
@@ -41,6 +57,7 @@
       ['feedback', 'upcoming', 'planned'].some((key) => dom.toLines(roadmap[key]).length);
     if (!hasStructured) {
       dom.fillTextLines(el, notice?.body || labels.empty);
+      appendCoopSection(el, coop, opts);
       return;
     }
 
@@ -70,7 +87,8 @@
       });
       el.appendChild(wrap);
     }
+    appendCoopSection(el, coop, opts);
   }
 
-  return { DEFAULT_LABELS, fillNoticeBody };
+  return { DEFAULT_LABELS, fillNoticeBody, appendCoopSection };
 });

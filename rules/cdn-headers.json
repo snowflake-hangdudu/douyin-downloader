@@ -5,12 +5,21 @@
     "action": {
       "type": "modifyHeaders",
       "requestHeaders": [
-        { "header": "Referer", "operation": "set", "value": "https://www.douyin.com/" }
+        {
+          "header": "Referer",
+          "operation": "set",
+          "value": "https://www.douyin.com/"
+        }
       ]
     },
     "condition": {
       "urlFilter": "||douyinvod.com",
-      "resourceTypes": ["media", "xmlhttprequest", "other", "image"]
+      "resourceTypes": [
+        "media",
+        "xmlhttprequest",
+        "other",
+        "image"
+      ]
     }
   },
   {
@@ -19,12 +28,20 @@
     "action": {
       "type": "modifyHeaders",
       "requestHeaders": [
-        { "header": "Referer", "operation": "set", "value": "https://www.douyin.com/" }
+        {
+          "header": "Referer",
+          "operation": "set",
+          "value": "https://www.douyin.com/"
+        }
       ]
     },
     "condition": {
       "urlFilter": "||douyinpic.com",
-      "resourceTypes": ["image", "other", "xmlhttprequest"]
+      "resourceTypes": [
+        "image",
+        "other",
+        "xmlhttprequest"
+      ]
     }
   },
   {
@@ -33,12 +50,20 @@
     "action": {
       "type": "modifyHeaders",
       "requestHeaders": [
-        { "header": "Referer", "operation": "set", "value": "https://www.douyin.com/" }
+        {
+          "header": "Referer",
+          "operation": "set",
+          "value": "https://www.douyin.com/"
+        }
       ]
     },
     "condition": {
       "urlFilter": "||byteimg.com",
-      "resourceTypes": ["image", "other", "xmlhttprequest"]
+      "resourceTypes": [
+        "image",
+        "other",
+        "xmlhttprequest"
+      ]
     }
   },
   {
@@ -47,12 +72,130 @@
     "action": {
       "type": "modifyHeaders",
       "requestHeaders": [
-        { "header": "Referer", "operation": "set", "value": "https://www.douyin.com/" }
+        {
+          "header": "Referer",
+          "operation": "set",
+          "value": "https://www.douyin.com/"
+        }
       ]
     },
     "condition": {
       "urlFilter": "||bytecdn.cn",
-      "resourceTypes": ["media", "xmlhttprequest", "other"]
+      "resourceTypes": [
+        "media",
+        "xmlhttprequest",
+        "other"
+      ]
+    }
+  },
+  {
+    "id": 5,
+    "priority": 1,
+    "action": {
+      "type": "modifyHeaders",
+      "requestHeaders": [
+        {
+          "header": "Referer",
+          "operation": "set",
+          "value": "https://www.douyin.com/"
+        }
+      ]
+    },
+    "condition": {
+      "urlFilter": "||douyincdn.com",
+      "resourceTypes": [
+        "media",
+        "xmlhttprequest",
+        "other"
+      ]
+    }
+  },
+  {
+    "id": 6,
+    "priority": 1,
+    "action": {
+      "type": "modifyHeaders",
+      "requestHeaders": [
+        {
+          "header": "Referer",
+          "operation": "set",
+          "value": "https://www.douyin.com/"
+        }
+      ]
+    },
+    "condition": {
+      "urlFilter": "||bytevod.com",
+      "resourceTypes": [
+        "media",
+        "xmlhttprequest",
+        "other"
+      ]
+    }
+  },
+  {
+    "id": 7,
+    "priority": 1,
+    "action": {
+      "type": "modifyHeaders",
+      "requestHeaders": [
+        {
+          "header": "Referer",
+          "operation": "set",
+          "value": "https://www.douyin.com/"
+        }
+      ]
+    },
+    "condition": {
+      "urlFilter": "||snssdk.com",
+      "resourceTypes": [
+        "media",
+        "xmlhttprequest",
+        "other"
+      ]
+    }
+  },
+  {
+    "id": 8,
+    "priority": 1,
+    "action": {
+      "type": "modifyHeaders",
+      "requestHeaders": [
+        {
+          "header": "Referer",
+          "operation": "set",
+          "value": "https://www.douyin.com/"
+        }
+      ]
+    },
+    "condition": {
+      "urlFilter": "||douyin.com/aweme/v1/play/",
+      "resourceTypes": [
+        "media",
+        "xmlhttprequest",
+        "other"
+      ]
+    }
+  },
+  {
+    "id": 9,
+    "priority": 1,
+    "action": {
+      "type": "modifyHeaders",
+      "requestHeaders": [
+        {
+          "header": "Referer",
+          "operation": "set",
+          "value": "https://www.douyin.com/"
+        }
+      ]
+    },
+    "condition": {
+      "urlFilter": "||iesdouyin.com/aweme/v1/play/",
+      "resourceTypes": [
+        "media",
+        "xmlhttprequest",
+        "other"
+      ]
     }
   }
 ]

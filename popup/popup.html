@@ -3,11 +3,12 @@
 <head>
   <meta charset="UTF-8">
   <link rel="stylesheet" href="popup.css">
+  <link rel="stylesheet" href="../shared/design-system.css">
 </head>
 <body>
-  <div class="popup">
+  <div class="popup dl-popup" data-theme="douyin">
     <header class="popup-header">
-      <img src="../icons/icon48.png" width="28" height="28" alt="" class="popup-icon">
+      <img src="../icons/icon48.png?v=5" width="30" height="30" alt="" class="popup-icon">
       <div class="popup-header-text">
         <h1 id="app-title">下载助手</h1>
         <span id="app-version" class="popup-version"></span>
@@ -74,11 +75,6 @@
         </div>
         <div id="empty-steps" class="popup-steps"></div>
         <div id="empty-tags" class="popup-feature-tags"></div>
-        <p class="popup-legal">
-          <a id="empty-faq" href="../docs/faq.html" target="_blank" rel="noopener">常见问题</a>
-          ·
-          <a id="empty-privacy" href="../docs/index.html" target="_blank" rel="noopener">隐私政策</a>
-        </p>
         <a id="btn-go-site" class="popup-btn" href="#" target="_blank" rel="noopener">打开网站</a>
       </div>
 
@@ -94,6 +90,11 @@
         <button id="btn-retry" type="button" class="popup-btn popup-btn-outline">刷新并重试</button>
       </div>
     </main>
+    <footer class="popup-footer">
+      <a id="popup-faq" href="../docs/faq.html" target="_blank" rel="noopener">常见问题</a>
+      <span aria-hidden="true">|</span>
+      <a id="popup-privacy" href="../docs/index.html" target="_blank" rel="noopener">隐私政策</a>
+    </footer>
   </div>
   <script src="popup-config.js"></script>
   <script src="popup.js"></script>
