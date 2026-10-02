@@ -36,11 +36,11 @@
     cacheKey: 'douyin-dlRemoteContent_v1',
     ratingKey: 'douyin-dlStoreRating_v1',
     footer: {
+      showNotice: false,
       showHelpLinks: false,
       showSettings: true,
       email: 'hangdudu0@agent.qq.com',
       feedbackMode: 'copy',
-      settingsLabel: '设置',
       showDonate: true
     },
     onFillSettings: fillSettingsSheet,
@@ -48,7 +48,7 @@
     onFeedback: copyFeedbackEmail,
     defaults: {
       notice: {
-        enabled: true,
+        enabled: false,
         title: '公告',
         pinned: ['支持保存当前已能正常观看的单个视频，以及合集列表。不支持会员、付费或受 DRM 保护的内容。'],
         recent: [
@@ -84,7 +84,7 @@
   const ui = document.createElement('div');
   ui.className = 'dy-dl';
   ui.innerHTML = `
-    <div class="dy-dl-mode-tabs hidden" role="tablist" aria-label="下载模式">
+    <div class="dy-dl-mode-tabs hidden" role="tablist" aria-label="下载模式" data-i18n-aria-label="downloadMode">
       <button type="button" data-mode="video" class="active" role="tab" aria-selected="true">单视频</button>
       <button type="button" data-mode="list" role="tab" aria-selected="false">列表下载</button>
     </div>
@@ -140,6 +140,7 @@
       <div class="dy-dl-job-list hidden"></div>
       <div class="dy-dl-status hidden" role="status" aria-live="polite"></div>
       <div class="dy-dl-tools">
+        <button type="button" class="dy-dl-history-btn dy-dl-retry-info hidden" data-action="retry-info">重新识别</button>
         <button type="button" class="dy-dl-history-btn" data-action="downloads">浏览器下载记录</button>
       </div>
     </div>
@@ -158,7 +159,7 @@
         </div>
         <div class="dy-dl-list-head-actions">
           <button type="button" class="dy-dl-list-tool dy-dl-list-refresh">刷新列表</button>
-          <button type="button" class="dy-dl-list-tool dy-dl-list-select-all" title="选择当前已加载的所有视频">全选</button>
+          <button type="button" class="dy-dl-list-tool dy-dl-list-select-all" title="选择当前已加载的所有视频" data-i18n-title="selectLoaded">全选</button>
         </div>
       </div>
       <div class="dy-dl-list-items"></div>
@@ -177,6 +178,7 @@
       <p class="dy-dl-list-status hidden" aria-live="polite"></p>
     </div>
   `;
+  markStaticUi(ui);
   shell.home.appendChild(ui);
 
   const modeTabsEl = ui.querySelector('.dy-dl-mode-tabs');
@@ -217,6 +219,9 @@
   const listStatusEl = ui.querySelector('.dy-dl-list-status');
 
   let videoInfo = null;
+  let videoLoadPending = false;
+  let recoveryAttempts = 0;
+  let recoveryTimer = 0;
   let pageAwemeIdHint = '';
   let selectedQn = 0;
   let listSelectedQn = 0;
@@ -333,13 +338,13 @@
     // 成功/过程提示不占主界面；仅错误时显示状态条。
     if (!text || kind !== 'error') {
       statusEl.classList.add('hidden');
-      statusEl.textContent = '';
+      setUiText(statusEl, '');
       statusEl.dataset.kind = '';
       if (text) shell.debug.log('状态', text);
       return;
     }
     statusEl.dataset.kind = 'error';
-    statusEl.textContent = text;
+    setUiText(statusEl, text);
     statusEl.classList.remove('hidden');
   }
 
@@ -363,9 +368,9 @@
     const blocked = !videoInfo?.qualities?.length || queueRunning || count >= PARALLEL_MAX;
     startBtn.disabled = blocked;
     if (startLabelEl) {
-      if (!count) startLabelEl.textContent = '开始下载';
-      else if (count >= PARALLEL_MAX) startLabelEl.textContent = '并行已满 (' + count + ')';
-      else startLabelEl.textContent = '再下一个 (' + count + ')';
+      if (!count) setUiText(startLabelEl, '开始下载');
+      else if (count >= PARALLEL_MAX) setUiText(startLabelEl, '并行已满 (' + count + ')');
+      else setUiText(startLabelEl, '再下一个 (' + count + ')');
     }
   }
 
@@ -388,13 +393,13 @@
 
   function qualityLabel(item) {
     if (!item) return '';
-    return item.label;
+    return tr(item.label);
   }
 
   function refreshFilenamePreview() {
     if (!filenamePreviewEl) return;
     if (!videoInfo) {
-      filenamePreviewEl.textContent = '文件名预览会在识别视频后显示';
+      setUiText(filenamePreviewEl, '文件名预览会在识别视频后显示');
       return;
     }
     const quality = currentQuality();
@@ -405,7 +410,7 @@
     filenamePreviewEl.replaceChildren();
     const label = document.createElement('span');
     label.className = 'dy-dl-filename-preview-label';
-    label.textContent = '保存为：';
+    setUiText(label, '保存为：');
     const filename = document.createElement('span');
     filename.className = 'dy-dl-filename-preview-name';
     filename.textContent = name;
@@ -422,7 +427,7 @@
     }
     let text = '预计大小：约 ' + parse.formatBytes(bytes) + '（约数，仅供参考）';
     if (quality?.h265) text += ' · 部分播放器可能只有声音';
-    estimateTextEl.textContent = text;
+    setUiText(estimateTextEl, text);
     estimateEl.classList.remove('hidden');
   }
 
@@ -431,7 +436,7 @@
     if (!list?.length) {
       const empty = document.createElement('span');
       empty.className = 'dy-dl-pill disabled';
-      empty.textContent = '无可用清晰度';
+      setUiText(empty, '无可用清晰度');
       pillsEl.appendChild(empty);
       selectedQn = 0;
       return;
@@ -442,7 +447,7 @@
       const btn = document.createElement('button');
       btn.type = 'button';
       btn.className = 'dy-dl-pill' + (item.qn === selectedQn ? ' active' : '');
-      btn.textContent = qualityLabel(item);
+      setUiText(btn, qualityLabel(item));
       btn.setAttribute('aria-pressed', String(item.qn === selectedQn));
       btn.onclick = () => {
         selectedQn = item.qn;
@@ -556,12 +561,12 @@
   function setListStatus(text, kind) {
     if (!text) {
       listStatusEl.classList.add('hidden');
-      listStatusEl.textContent = '';
+      setUiText(listStatusEl, '');
       listStatusEl.removeAttribute('data-type');
       return;
     }
     listStatusEl.dataset.type = kind || '';
-    listStatusEl.textContent = text;
+    setUiText(listStatusEl, text);
     listStatusEl.classList.remove('hidden');
   }
 
@@ -641,7 +646,7 @@
     if (!list?.length) {
       const empty = document.createElement('span');
       empty.className = 'dy-dl-pill disabled';
-      empty.textContent = '无可用清晰度';
+      setUiText(empty, '无可用清晰度');
       listPillsEl.appendChild(empty);
       listSelectedQn = 0;
       return;
@@ -652,7 +657,7 @@
       const btn = document.createElement('button');
       btn.type = 'button';
       btn.className = 'dy-dl-pill' + (item.qn === listSelectedQn ? ' active' : '');
-      btn.textContent = qualityLabel(item);
+      setUiText(btn, qualityLabel(item));
       btn.setAttribute('aria-pressed', String(item.qn === listSelectedQn));
       btn.onclick = () => {
         listSelectedQn = item.qn;
@@ -672,31 +677,31 @@
   function updateListLoadMore() {
     if (listRefreshBtn) {
       listRefreshBtn.disabled = listLoading || queueRunning;
-      listRefreshBtn.textContent = listLoading ? '正在加载…' : '刷新列表';
+      setUiText(listRefreshBtn, listLoading ? '正在加载…' : '刷新列表');
     }
     if (!listLoadMoreBtn) return;
     const show = listHasMore && !listLoading && listItems.length > 0;
     listLoadMoreBtn.classList.toggle('hidden', !show);
     listLoadMoreBtn.disabled = listLoading || queueRunning;
-    listLoadMoreBtn.textContent = listLoading ? '正在加载…' : '继续加载';
+    setUiText(listLoadMoreBtn, listLoading ? '正在加载…' : '继续加载');
   }
 
   function updateListSelection() {
     const total = listItems.length;
     const selected = selectedListIds.size;
-    listCountEl.textContent = total
+    setUiText(listCountEl, total
       ? `已加载 ${total}${listTotalHint()} · 已选 ${selected} 个`
-      : '尚未加载到合集视频';
+      : '尚未加载到合集视频');
     const allSelected = total > 0 && selected === total;
-    listSelectAllBtn.textContent = allSelected ? '取消全选' : '全选';
+    setUiText(listSelectAllBtn, allSelected ? '取消全选' : '全选');
     listSelectAllBtn.setAttribute('aria-pressed', String(allSelected));
     listSelectAllBtn.disabled = !total || queueRunning;
     listStartBtn.disabled = !selected || queueRunning || activeJobs.size > 0;
-    listStartBtn.textContent = selected ? `下载已选 ${selected} 个` : '下载已选视频';
+    setUiText(listStartBtn, selected ? `下载已选 ${selected} 个` : '下载已选视频');
     if (listRetryBtn) {
       listRetryBtn.classList.toggle('hidden', !lastListFailures.length || queueRunning);
       listRetryBtn.disabled = queueRunning;
-      listRetryBtn.textContent = lastListFailures.length ? `重试未完成（${lastListFailures.length}）` : '重试未完成';
+      setUiText(listRetryBtn, lastListFailures.length ? `重试未完成（${lastListFailures.length}）` : '重试未完成');
     }
     listCancelBtn.classList.toggle('hidden', !queueRunning);
     syncCollectionGuide();
@@ -708,7 +713,7 @@
     const job = [...activeJobs.values()].find((item) => item.scope === 'list');
     listJobPanel.classList.toggle('hidden', !queueRunning && !job);
     listPauseBtn.disabled = !job;
-    listPauseBtn.textContent = job?.paused ? '继续' : '暂停';
+    setUiText(listPauseBtn, job?.paused ? '继续' : '暂停');
   }
 
   function mergeListItems(items) {
@@ -724,7 +729,7 @@
     if (!listItems.length) {
       const empty = document.createElement('p');
       empty.className = 'dy-dl-list-empty';
-      empty.textContent = '没有可下载的合集视频。';
+      setUiText(empty, '没有可下载的合集视频。');
       listItemsEl.appendChild(empty);
       updateListSelection();
       return;
@@ -764,18 +769,19 @@
       }
       const ordinal = document.createElement('span');
       ordinal.className = 'dy-dl-list-item-index';
-      ordinal.textContent = String(item.episode || index + 1);
+      setUiText(ordinal, String(item.episode || index + 1));
       const meta = document.createElement('span');
       meta.className = 'dy-dl-list-item-meta';
       const title = document.createElement('strong');
-      const titleText = item.episode ? `第${item.episode}集：${item.title}` : item.title;
+      title.className = 'dy-dl-list-item-title';
+      const titleText = item.episode ? tr(`第${item.episode}集`) + ' · ' + item.title : item.title;
       title.textContent = titleText;
       title.title = titleText;
       const detail = document.createElement('small');
-      detail.textContent = [
-        item.playCount ? parse.formatCount(item.playCount) + '播放' : '',
+      setUiText(detail, [
+        item.playCount ? parse.formatCount(item.playCount) + tr('播放') : '',
         item.duration ? parse.formatDuration(item.duration) : ''
-      ].filter(Boolean).join(' · ');
+      ].filter(Boolean).join(' · '));
       meta.append(title, detail);
       label.append(checkbox, thumbWrap, ordinal, meta);
       fragment.appendChild(label);
@@ -882,7 +888,7 @@
     const parts = [];
     const qLabel = currentQuality()?.label;
     if (qLabel) parts.push(qLabel);
-    if (info.playCount) parts.push(parse.formatCount(info.playCount) + '播放');
+    if (info.playCount) parts.push(parse.formatCount(info.playCount) + tr('播放'));
     if (info.duration) parts.push(parse.formatDuration(info.duration));
     return parts.length ? parts.join(' · ') : 'MP4 视频';
   }
@@ -944,11 +950,11 @@
       input.remove();
     }
     if (copied) {
-      label.textContent = '已复制';
+      setUiText(label, '已复制');
       button.classList.add('is-copied');
       setTimeout(() => {
         if (!button.isConnected) return;
-        label.textContent = original;
+        setUiText(label, original);
         button.classList.remove('is-copied');
       }, 1600);
       return;
@@ -963,7 +969,7 @@
     const current = THEMES.find((item) => item.id === theme) || THEMES[0];
     const currentLabel = themeControl.querySelector('.dy-dl-settings-theme-current-label');
     const currentSwatch = themeControl.querySelector('.dy-dl-settings-theme-current-swatch');
-    if (currentLabel) currentLabel.textContent = current.name;
+    if (currentLabel) setUiText(currentLabel, themeName(current));
     if (currentSwatch) currentSwatch.dataset.theme = current.id;
     themeControl.querySelectorAll('[data-theme-option]').forEach((option) => {
       option.setAttribute('aria-selected', String(option.dataset.themeOption === current.id));
@@ -976,7 +982,7 @@
     donation.className = 'dy-dl-donate';
     const intro = document.createElement('p');
     intro.className = 'dy-dl-donate-intro';
-    intro.textContent = '您的支持将用于持续维护适配、改进下载体验。赞赏完全自愿，下载功能始终免费。';
+    setUiText(intro, '您的支持将用于持续维护适配、改进下载体验。赞赏完全自愿，下载功能始终免费。');
     const methods = document.createElement('div');
     methods.className = 'dy-dl-donate-methods';
     methods.setAttribute('aria-label', '选择赞赏方式');
@@ -1005,7 +1011,7 @@
       button.className = 'dy-dl-donate-method';
       button.dataset.method = option.id;
       button.setAttribute('aria-pressed', 'false');
-      button.textContent = option.label;
+      setUiText(button, option.label);
       button.addEventListener('click', () => selectMethod(option));
       buttons.push(button);
       methods.appendChild(button);
@@ -1016,6 +1022,45 @@
     selectMethod(options[0]);
   }
 
+  function markStaticUi(root) {
+    const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+    const nodes = [];
+    while (walker.nextNode()) {
+      if (/[\u3400-\u9fff]/.test(walker.currentNode.textContent)) nodes.push(walker.currentNode);
+    }
+    nodes.forEach((node) => {
+      const span = document.createElement('span');
+      setUiText(span, node.textContent.trim());
+      node.replaceWith(span);
+    });
+  }
+
+  function tr(text) {
+    return DownloaderKit.i18n?.translateText?.(String(text ?? '')) ?? String(text ?? '');
+  }
+
+  function setUiText(node, text) {
+    if (DownloaderKit.i18n?.setText) DownloaderKit.i18n.setText(node, text);
+    else node.textContent = tr(text);
+  }
+
+  function t(key) {
+    return globalThis.DownloaderKit?.i18n?.t?.(key) || key;
+  }
+
+  function templateError(error) {
+    const text = String(error || '');
+    if (text === '文件名模板不能为空') return t('templateEmpty');
+    if (text === '模板不能包含路径分隔符') return t('templatePath');
+    if (text.startsWith('未知变量：')) return t('unknownField') + text.slice('未知变量：'.length);
+    return text;
+  }
+
+  function themeName(theme) {
+    const translated = t('theme-' + theme.id);
+    return translated === 'theme-' + theme.id ? theme.name : translated;
+  }
+
   function fillSettingsSheet(body) {
     body.replaceChildren();
     const root = document.createElement('div');
@@ -1024,13 +1069,13 @@
     const themeRow = document.createElement('div');
     themeRow.className = 'dy-dl-settings-row';
     const themeRowLabel = document.createElement('span');
-    themeRowLabel.textContent = '主题色';
+    setUiText(themeRowLabel, t('theme'));
     const themeControl = document.createElement('div');
     themeControl.className = 'dy-dl-settings-theme-control';
     const themeTrigger = document.createElement('button');
     themeTrigger.type = 'button';
     themeTrigger.className = 'dy-dl-settings-theme-trigger';
-    themeTrigger.setAttribute('aria-label', '主题色');
+    themeTrigger.setAttribute('aria-label', t('theme'));
     themeTrigger.setAttribute('aria-haspopup', 'listbox');
     themeTrigger.setAttribute('aria-expanded', 'false');
     const currentSwatch = document.createElement('span');
@@ -1052,7 +1097,7 @@
       option.type = 'button';
       option.className = 'dy-dl-settings-theme-option';
       option.dataset.themeOption = theme.id;
-      option.dataset.label = theme.name;
+      option.dataset.label = themeName(theme);
       option.setAttribute('role', 'option');
       option.setAttribute('aria-selected', String(selectedTheme === theme.id));
       const swatch = document.createElement('span');
@@ -1060,7 +1105,7 @@
       swatch.dataset.theme = theme.id;
       swatch.setAttribute('aria-hidden', 'true');
       const optionLabel = document.createElement('span');
-      optionLabel.textContent = theme.name;
+      setUiText(optionLabel, themeName(theme));
       option.append(swatch, optionLabel);
       option.addEventListener('click', async (event) => {
         if (!event.isTrusted) return;
@@ -1070,11 +1115,11 @@
         try {
           await saveTheme(theme.id);
           syncThemePicker(themeControl, selectedTheme);
-          status.textContent = '主题已保存';
+          setUiText(status, t('themeSaved'));
         } catch (error) {
           applyTheme(previous);
           syncThemePicker(themeControl, previous);
-          status.textContent = error?.message || '主题保存失败';
+          setUiText(status, error?.message || t('themeSaveFailed'));
         }
       });
       themeOptions.appendChild(option);
@@ -1089,26 +1134,73 @@
     root.appendChild(themeRow);
     syncThemePicker(themeControl, selectedTheme);
 
-    const presetRow = document.createElement('label');
-    presetRow.className = 'dy-dl-settings-row';
-    const presetLabel = document.createElement('span');
-    presetLabel.textContent = '文件名';
-    const preset = document.createElement('select');
-    preset.className = 'dy-dl-settings-select';
-    preset.setAttribute('aria-label', '文件名规则');
+    const languageRow = document.createElement('label');
+    languageRow.className = 'dy-dl-settings-row';
+    const languageLabel = document.createElement('span');
+    setUiText(languageLabel, t('language'));
+    const languageControl = document.createElement('div');
+    languageControl.className = 'dy-dl-settings-control';
+    const languageWrap = document.createElement('div');
+    languageWrap.className = 'dy-dl-settings-select-wrap';
+    const languageSelect = document.createElement('select');
+    languageSelect.className = 'dy-dl-settings-select';
+    languageSelect.setAttribute('aria-label', t('language'));
     [
-      ['title', '默认（仅标题）'],
-      ['title-id', '标题 + 视频 ID'],
-      ['title-id-quality', '标题 + 视频 ID + 清晰度'],
-      ['detailed', '标题 + 作者 + 视频 ID + 清晰度'],
-      ['custom', '自定义…']
+      ['zh-CN', t('chinese')],
+      ['en', t('english')]
     ].forEach(([value, label]) => {
       const option = document.createElement('option');
       option.value = value;
-      option.textContent = label;
+      setUiText(option, label);
+      languageSelect.appendChild(option);
+    });
+    languageSelect.value = globalThis.DownloaderKit?.i18n?.language?.() || 'zh-CN';
+    languageSelect.addEventListener('mousedown', () => {
+      themeOptions.classList.add('hidden');
+      themeTrigger.setAttribute('aria-expanded', 'false');
+    });
+    languageSelect.addEventListener('change', (event) => {
+      if (!event.isTrusted) return;
+      const value = languageSelect.value === 'en' ? 'en' : 'zh-CN';
+      const save = globalThis.DownloaderKit?.i18n?.save;
+      if (!save) return;
+      save(value).then(() => shell.openSheet('settings')).catch(() => {});
+    });
+    languageWrap.appendChild(languageSelect);
+    languageControl.appendChild(languageWrap);
+    languageRow.append(languageLabel, languageControl);
+    root.appendChild(languageRow);
+
+    const presetRow = document.createElement('label');
+    presetRow.className = 'dy-dl-settings-row';
+    const presetLabel = document.createElement('span');
+    setUiText(presetLabel, t('filename'));
+    const filenameControl = document.createElement('div');
+    filenameControl.className = 'dy-dl-settings-control';
+    const presetWrap = document.createElement('div');
+    presetWrap.className = 'dy-dl-settings-select-wrap';
+    const preset = document.createElement('select');
+    preset.className = 'dy-dl-settings-select';
+    preset.setAttribute('aria-label', t('filenameRule'));
+    preset.addEventListener('mousedown', () => {
+      themeOptions.classList.add('hidden');
+      themeTrigger.setAttribute('aria-expanded', 'false');
+    });
+    [
+      ['title', t('presetTitle')],
+      ['title-id', t('presetTitleId')],
+      ['title-id-quality', t('presetTitleIdQuality')],
+      ['detailed', t('presetDetailed')],
+      ['custom', t('presetCustom')]
+    ].forEach(([value, label]) => {
+      const option = document.createElement('option');
+      option.value = value;
+      setUiText(option, label);
       preset.appendChild(option);
     });
-    presetRow.append(presetLabel, preset);
+    presetWrap.appendChild(preset);
+    filenameControl.appendChild(presetWrap);
+    presetRow.append(presetLabel, filenameControl);
     root.appendChild(presetRow);
 
     const customBlock = document.createElement('div');
@@ -1121,16 +1213,17 @@
     template.spellcheck = false;
     template.autocomplete = 'off';
     template.placeholder = '{title} - {author}';
-    template.setAttribute('aria-label', '自定义文件名模板');
+    template.setAttribute('aria-label', t('customTemplate'));
     customBlock.appendChild(template);
     const chips = document.createElement('div');
     chips.className = 'dy-dl-settings-chips';
-    chips.setAttribute('aria-label', '插入变量');
+    chips.setAttribute('aria-label', t('insertField'));
+    const chipKeys = { title: 'chipTitle', author: 'chipAuthor', id: 'chipId', episode: 'chipEpisode', quality: 'chipQuality', date: 'chipDate' };
     FILENAME.VARIABLES.forEach((item) => {
       const chip = document.createElement('button');
       chip.type = 'button';
       chip.className = 'dy-dl-settings-chip';
-      chip.textContent = item.label;
+      setUiText(chip, t(chipKeys[item.key] || item.label));
       chip.title = '{' + item.key + '}';
       chip.addEventListener('click', (event) => {
         if (!event.isTrusted) return;
@@ -1166,15 +1259,15 @@
     const reset = document.createElement('button');
     reset.type = 'button';
     reset.className = 'dy-dl-settings-reset';
-    reset.textContent = '恢复默认文件名';
+    setUiText(reset, t('resetFilename'));
     foot.append(status, reset);
     root.appendChild(foot);
     body.appendChild(root);
 
     let saveTimer = 0;
     const sampleMeta = {
-      title: '示例视频标题',
-      author: '示例作者',
+      title: t('sampleTitle'),
+      author: t('sampleAuthor'),
       id: '7653794808998426996',
       episode: 3
     };
@@ -1207,13 +1300,13 @@
       const check = FILENAME.validateTemplate(currentTemplate());
       if (!check.ok) {
         error.hidden = false;
-        error.textContent = check.error;
+        setUiText(error, templateError(check.error));
         preview.textContent = '—';
         return false;
       }
       error.hidden = true;
-      error.textContent = '';
-      preview.textContent = '预览：' + FILENAME.withExtension(FILENAME.renderTemplate(check.template, sampleMeta, {
+      setUiText(error, '');
+      preview.textContent = t('previewPrefix') + FILENAME.withExtension(FILENAME.renderTemplate(check.template, sampleMeta, {
         qualityLabel: '1080P',
         episode: 3,
         date: FILENAME.todayLocal()
@@ -1231,20 +1324,20 @@
     async function persist(showOk) {
       const nextTemplate = refreshPreview();
       if (!nextTemplate) {
-        status.textContent = '模板无效';
+        setUiText(status, t('templateInvalid'));
         return;
       }
       try {
         filenameSettings = await settingsStore.saveSettings({ filenameTemplate: nextTemplate });
         refreshFilenamePreview();
-        status.textContent = showOk ? '已保存' : '';
+        setUiText(status, showOk ? t('saved') : '');
       } catch (err) {
-        status.textContent = err?.message || '保存失败';
+        setUiText(status, err?.message || t('saveFailed'));
       }
     }
 
     function queueSave() {
-      status.textContent = '';
+      setUiText(status, '');
       clearTimeout(saveTimer);
       saveTimer = setTimeout(() => { persist(true); }, 280);
     }
@@ -1269,9 +1362,9 @@
         filenameSettings = await settingsStore.resetSettings();
         applyForm(filenameSettings);
         refreshFilenamePreview();
-        status.textContent = '已恢复默认文件名';
+        setUiText(status, t('filenameReset'));
       } catch (err) {
-        status.textContent = err?.message || '恢复失败';
+        setUiText(status, err?.message || t('resetFailed'));
       }
     });
 
@@ -1304,15 +1397,15 @@
     if (!value) return '';
     const diff = Math.max(0, Date.now() - value * 1000);
     const minutes = Math.floor(diff / 60000);
-    if (minutes < 1) return '刚刚';
-    if (minutes < 60) return minutes + '分钟前';
+    if (minutes < 1) return tr('刚刚');
+    if (minutes < 60) return tr(minutes + '分钟前');
     const hours = Math.floor(minutes / 60);
-    if (hours < 24) return hours + '小时前';
+    if (hours < 24) return tr(hours + '小时前');
     const days = Math.floor(hours / 24);
-    if (days < 30) return days + '天前';
+    if (days < 30) return tr(days + '天前');
     const months = Math.floor(days / 30);
-    if (months < 12) return months + '个月前';
-    return Math.floor(months / 12) + '年前';
+    if (months < 12) return tr(months + '个月前');
+    return tr(Math.floor(months / 12) + '年前');
   }
 
   function applyVideoInfo(info) {
@@ -1320,12 +1413,15 @@
     const expectedId = urlId || pageAwemeIdHint || info?.id || '';
     if (!info || info.id !== expectedId || typeof info.title !== 'string'
       || !Array.isArray(info.qualities) || !info.qualities.length
+      || !info.qualities.some((quality) => quality.urls?.length)
       || info.qualities.some((quality) => !Number.isFinite(quality.qn) || !Array.isArray(quality.urls))) {
       throw new Error('识别结果与当前作品不匹配，请刷新页面后重试');
     }
     if (!urlId && info.id) pageAwemeIdHint = info.id;
     videoInfo = info;
+    ui.querySelector('.dy-dl-retry-info').classList.add('hidden');
     setVideoLoading(false);
+    delete titleEl.dataset.i18nUiMessage;
     titleEl.textContent = info.title;
     if (info.author) {
       authorEl.textContent = info.author;
@@ -1334,9 +1430,9 @@
       authorEl.classList.add('hidden');
     }
     const details = [];
-    if (info.playCount) details.push(parse.formatCount(info.playCount) + ' 播放');
+    if (info.playCount) details.push(parse.formatCount(info.playCount) + ' ' + t('play'));
     if (info.createTime) details.push(formatRelativeTime(info.createTime));
-    subEl.textContent = details.length ? details.join(' · ') : '抖音视频';
+    setUiText(subEl, details.length ? details.join(' · ') : '抖音视频');
     showVideoCover(info);
     shell.debug.log('封面', info.cover || '空');
     selectedQn = pickDefaultQn(displayQualities(info.qualities));
@@ -1353,19 +1449,23 @@
   function showEmpty(message) {
     videoInfo = null;
     setVideoLoading(false);
-    titleEl.textContent = message || '请打开单个视频页';
+    titleEl.dataset.i18nUiMessage = '1';
+    setUiText(titleEl, message || '请打开单个视频页');
     authorEl.classList.add('hidden');
-    subEl.textContent = '';
+    setUiText(subEl, '');
     showCover('');
     pillsEl.replaceChildren();
     const tip = document.createElement('span');
     tip.className = 'dy-dl-pill disabled';
-    tip.textContent = '未识别到视频';
+    setUiText(tip, '未识别到视频');
     pillsEl.appendChild(tip);
     estimateEl.classList.add('hidden');
+    refreshFilenamePreview();
+    ui.querySelector('.dy-dl-retry-info').classList.remove('hidden');
     startBtn.disabled = true;
     coverBtn.disabled = true;
     updateMixAvailability(null);
+    setStatus('', '');
   }
 
   function revealDebug() {
@@ -1375,8 +1475,12 @@
 
   async function loadVideoInfo() {
     const generation = ++loadGeneration;
+    videoLoadPending = true;
+    const previousInfo = videoInfo;
     const href = location.href;
     videoInfo = null;
+    refreshFilenamePreview();
+    estimateEl.classList.add('hidden');
     pageAwemeIdHint = parse.parseAwemeId(href) || '';
     let awemeId = pageAwemeIdHint;
     shell.debug.log('面板', '识别开始 href=' + href);
@@ -1387,11 +1491,12 @@
     pillsEl.replaceChildren();
     const loading = document.createElement('span');
     loading.className = 'dy-dl-pill loading';
-    loading.textContent = '加载中';
+    setUiText(loading, '加载中');
     pillsEl.appendChild(loading);
     if (!awemeId) {
       try {
         const detected = await agentCall('DETECT_AWEME_ID', { href }, 8000);
+        if (generation !== loadGeneration || href !== location.href) return;
         awemeId = detected?.id || '';
         if (awemeId) {
           pageAwemeIdHint = awemeId;
@@ -1412,6 +1517,10 @@
       if (generation !== loadGeneration || href !== location.href) return;
       shell.debug.log('错误', error.message || error);
       const fallbackId = awemeId || pageAwemeIdHint;
+      if (previousInfo?.id === fallbackId && previousInfo.qualities?.some((quality) => quality.urls?.length)) {
+        applyVideoInfo(previousInfo);
+        return;
+      }
       if (!fallbackId) {
         showEmpty('请打开单个视频页后再下载');
         shell.debug.log('面板', '当前不是单个视频页');
@@ -1438,14 +1547,14 @@
         ? '识别超时：请先播放视频几秒，再点面板刷新；或刷新整页后重试'
         : message;
       showEmpty(display);
-      setStatus(display, 'error');
       revealDebug();
-      try {
-        const dump = await agentCall('DUMP_STATE', { awemeId }, 5000);
+      agentCall('DUMP_STATE', { awemeId }, 5000).then((dump) => {
         shell.debug.log('快照', dump?.state || dump);
-      } catch (dumpError) {
+      }).catch((dumpError) => {
         shell.debug.log('快照失败', dumpError.message || dumpError);
-      }
+      });
+    } finally {
+      if (generation === loadGeneration) videoLoadPending = false;
     }
   }
 
@@ -1468,13 +1577,14 @@
         <button type="button" class="dy-dl-action-btn danger dy-dl-job-cancel">取消</button>
       </div>
     `;
+    markStaticUi(el);
     const titleNode = el.querySelector('.dy-dl-progress-title');
     const cardTitle = job.scope === 'list'
       ? shortListLabel(job.info)
       : (job.info?.title || '视频');
     titleNode.textContent = cardTitle;
     titleNode.title = job.info?.title || cardTitle;
-    el.querySelector('.dy-dl-progress-q').textContent = job.label || '';
+    setUiText(el.querySelector('.dy-dl-progress-q'), job.label || '');
     const pauseBtn = el.querySelector('.dy-dl-job-pause');
     const cancelBtn = el.querySelector('.dy-dl-job-cancel');
     const bar = el.querySelector('.dy-dl-progress-bar');
@@ -1489,12 +1599,12 @@
       if (current.paused) {
         agentSignal('RESUME_DOWNLOAD', { jobId: job.jobId });
         current.paused = false;
-        pauseBtn.textContent = '暂停';
+        setUiText(pauseBtn, '暂停');
         bar.classList.remove('paused');
       } else {
         agentSignal('PAUSE_DOWNLOAD', { jobId: job.jobId });
         current.paused = true;
-        pauseBtn.textContent = '继续';
+        setUiText(pauseBtn, '继续');
         bar.classList.add('paused');
       }
     };
@@ -1510,12 +1620,13 @@
       const inline = document.createElement('button');
       inline.type = 'button';
       inline.className = 'dy-dl-job-cancel-inline';
-      inline.textContent = '取消';
+      setUiText(inline, '取消');
       el.querySelector('.dy-dl-progress-head').appendChild(inline);
       inline.onclick = (event) => cancelBtn.onclick(event);
     }
     job.cardEl = el;
     const host = parentEl || jobListEl;
+    DownloaderKit.i18n?.translateDom?.(el);
     host.appendChild(el);
     host.classList.remove('hidden');
     syncListJobPanel();
@@ -1532,33 +1643,33 @@
     const pauseBtn = el.querySelector('.dy-dl-job-pause');
     if (step === 'paused') {
       job.paused = true;
-      pauseBtn.textContent = '继续';
-      phaseEl.textContent = '已暂停';
+      setUiText(pauseBtn, '继续');
+      setUiText(phaseEl, '已暂停');
       bar.classList.add('paused');
       syncListJobPanel();
       return;
     }
     if (job.paused) {
       job.paused = false;
-      pauseBtn.textContent = '暂停';
+      setUiText(pauseBtn, '暂停');
       bar.classList.remove('paused');
       syncListJobPanel();
     }
     const labels = { download: '下载视频', save: '保存到本地' };
-    phaseEl.textContent = labels[step] || '下载中…';
+    setUiText(phaseEl, labels[step] || '下载中…');
     const recv = Number(received) || 0;
     const tot = Number(total) || 0;
     const pct = tot > 0 ? Math.min(100, Math.round((recv / tot) * 100)) : Math.max(0, Number(percent) || 0);
     if (tot > 0) {
-      pctEl.textContent = parse.formatBytes(recv) + ' / ' + parse.formatBytes(tot);
+      setUiText(pctEl, parse.formatBytes(recv) + ' / ' + parse.formatBytes(tot));
       bar.style.width = pct + '%';
       bar.classList.remove('indeterminate');
     } else if (pct > 0) {
-      pctEl.textContent = pct + '%';
+      setUiText(pctEl, pct + '%');
       bar.style.width = pct + '%';
       bar.classList.remove('indeterminate');
     } else {
-      pctEl.textContent = '';
+      setUiText(pctEl, '');
       bar.classList.add('indeterminate');
     }
   }
@@ -1941,6 +2052,8 @@
     }
     if (type === 'LOCATION') {
       if (event.data.href) {
+        clearTimeout(recoveryTimer);
+        recoveryAttempts = 0;
         listLoadGeneration += 1;
         listLoaded = false;
         listLoading = false;
@@ -1951,6 +2064,18 @@
         syncModeTabs();
         loadVideoInfo();
       }
+      return;
+    }
+    if (type === 'VIDEO_AVAILABLE') {
+      const info = data?.info;
+      const wanted = parse.parseAwemeId(location.href) || pageAwemeIdHint;
+      if (!wanted || info?.id !== wanted || videoInfo?.id === wanted) return;
+      try {
+        applyVideoInfo(info);
+        loadGeneration += 1;
+        videoLoadPending = false;
+        recoveryAttempts = 0;
+      } catch (_) { /* Wait for a complete source instead of accepting metadata. */ }
       return;
     }
     if (type === 'PROGRESS') {
@@ -1979,7 +2104,8 @@
           title: videoInfo.title,
           author: videoInfo.author,
           cover: videoInfo.cover,
-          sub: formatPopupSub(videoInfo)
+          sub: formatPopupSub(videoInfo),
+          qualities: displayQualities(videoInfo.qualities).map((item) => item.label).filter(Boolean)
         } : {
           title: '正在识别当前视频',
           sub: '请稍候…'
@@ -1993,10 +2119,42 @@
     if (!event.isTrusted) return;
     startDownload().catch((error) => setStatus(error.message || '下载失败', 'error'));
   });
+  ui.querySelector('.dy-dl-retry-info').addEventListener('click', (event) => {
+    if (event.isTrusted && !videoLoadPending) loadVideoInfo();
+  });
+  function recoverOnPlayback(event) {
+    if (event.target?.tagName !== 'VIDEO' || videoInfo || videoLoadPending || recoveryAttempts >= 3) return;
+    clearTimeout(recoveryTimer);
+    recoveryTimer = setTimeout(() => {
+      if (videoInfo || videoLoadPending) return;
+      recoveryAttempts += 1;
+      loadVideoInfo();
+    }, 150);
+  }
+  document.addEventListener('loadedmetadata', recoverOnPlayback, true);
+  document.addEventListener('canplay', recoverOnPlayback, true);
   coverBtn.addEventListener('click', (event) => {
     if (!event.isTrusted) return;
     downloadCover().catch((error) => setStatus(error.message || '封面下载失败', 'error'));
   });
+  function localizePanel() {
+    DownloaderKit.i18n?.translateDom?.(ui);
+    refreshVideoStartBtn();
+    refreshFilenamePreview();
+    refreshEstimate();
+    updateListSelection();
+    updateListLoadMore();
+    syncListJobPanel();
+    if (listItems.length) renderListItems();
+    if (videoInfo) {
+      const parts = [];
+      if (videoInfo.playCount) parts.push(parse.formatCount(videoInfo.playCount) + ' ' + t('play'));
+      if (videoInfo.createTime) parts.push(formatRelativeTime(videoInfo.createTime));
+      setUiText(subEl, parts.length ? parts.join(' · ') : '抖音视频');
+    }
+  }
+  DownloaderKit.i18n?.ready?.then(localizePanel);
+  DownloaderKit.i18n?.onChange?.(localizePanel);
   agentCall('FLUSH_LOGS', {}, 3000).catch(() => {});
   ensureAgentReady().then((ready) => {
     if (!ready) {

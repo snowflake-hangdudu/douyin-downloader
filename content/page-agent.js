@@ -58,6 +58,14 @@
 
   function cacheVideo(info) {
     if (!info?.id) return false;
+    const previous = cache.get(info.id);
+    const hasSource = info.qualities?.some((quality) => quality.urls?.length);
+    if (previous) info = {
+      ...previous, ...info,
+      title: info.title || previous.title,
+      cover: info.cover || previous.cover,
+      qualities: hasSource ? info.qualities : (previous.qualities || [])
+    };
     const existed = cache.has(info.id);
     cache.delete(info.id);
     cache.set(info.id, info);
@@ -66,8 +74,17 @@
   }
 
   function remember(info) {
+    const previous = cache.get(info?.id);
     const added = cacheVideo(info);
     if (info?.mix?.id) rememberMixSeed(info);
+    const currentId = parse.parseAwemeId(location.href) || lastActiveAwemeId;
+    const available = cache.get(info?.id);
+    const changed = !previous?.qualities?.some((quality) => quality.urls?.length)
+      || available?.qualities?.[0]?.urls?.[0] !== previous?.qualities?.[0]?.urls?.[0]
+      || available?.title !== previous?.title;
+    if (changed && available?.id === currentId && available.qualities?.some((quality) => quality.urls?.length)) {
+      reply(null, { type: 'VIDEO_AVAILABLE', data: { info: available } });
+    }
     return added;
   }
 
@@ -180,13 +197,40 @@
       const inModal = Boolean(video.closest(
         '[data-e2e="feed-active-video"], [data-e2e="feed-video"], [data-e2e="aweme-detail"], [role="dialog"], [class*="Modal"], [class*="modal"], [class*="Overlay"], [class*="overlay"], [class*="Detail"]'
       ));
-      const urls = [...new Set([video.currentSrc, video.src])].filter((url) => /^https:\/\//i.test(url || '') && !/\.m3u8/i.test(url));
+      const urls = mediaUrlsFromVideo(video);
       const container = video.closest('[data-e2e="feed-active-video"], [data-e2e="feed-video"], [data-e2e="aweme-detail"]');
       const title = container?.querySelector('[data-e2e="browse-video-desc"], [data-e2e="video-desc"]')?.textContent?.trim() || '';
-      return { video, area, inModal, urls, title };
-    }).filter((item) => item.urls.length);
-    scored.sort((a, b) => (Number(b.inModal) - Number(a.inModal)) || (b.area - a.area));
-    return scored[0] || null;
+      return { video, area, inModal, urls, title, hasMedia: Boolean(video.currentSrc || video.src || urls.length) };
+    }).filter((item) => item.urls.length || item.hasMedia);
+    scored.sort((a, b) => (Number(Boolean(b.urls.length)) - Number(Boolean(a.urls.length)))
+      || (Number(b.inModal) - Number(a.inModal))
+      || (Number(!b.video.paused) - Number(!a.video.paused))
+      || (b.area - a.area));
+    return scored.find((item) => item.urls.length) || null;
+  }
+
+  function mediaUrlsFromVideo(video) {
+    const found = [];
+    const push = (value) => {
+      const url = String(value || '').trim();
+      if (!/^https:\/\//i.test(url) || /\.m3u8(?:$|\?)/i.test(url)) return;
+      if (!found.includes(url)) found.push(url);
+    };
+    push(video?.currentSrc);
+    push(video?.src);
+    video?.querySelectorAll?.('source[src]')?.forEach((node) => push(node.src || node.getAttribute('src')));
+    try {
+      const root = video?.closest?.('.xgplayer, [class*="xgplayer"]');
+      const player = root?.__player || root?.player || video?.__player || video?.player;
+      const config = player?.config || player?.playerConfig || player?.opts || {};
+      const candidates = [config.url, config.src, config.urls, player?.url, player?.src];
+      candidates.forEach((item) => {
+        if (typeof item === 'string') push(item);
+        else if (Array.isArray(item)) item.forEach((entry) => push(entry?.src || entry?.url || entry));
+        else if (item && typeof item === 'object') push(item.src || item.url);
+      });
+    } catch (_) { /* ignore */ }
+    return found;
   }
 
   function pushAwemeId(candidates, id) {
@@ -232,6 +276,13 @@
     const candidates = [];
     const target = href || location.href;
     pushAwemeId(candidates, parse.parseAwemeId(target));
+    if (candidates.length) return candidates[0];
+    const activeScope = document.querySelector('[data-e2e="feed-active-video"], [data-e2e="aweme-detail"]');
+    const scopeId = activeScope?.getAttribute('data-aweme-id') || activeScope?.getAttribute('data-item-id');
+    if (/^\d{5,}$/.test(scopeId || '')) return scopeId;
+    const scopeIds = [...(activeScope?.querySelectorAll('a[href]') || [])]
+      .map((node) => parse.parseAwemeId(node.href)).filter(Boolean);
+    if (new Set(scopeIds).size === 1) return scopeIds[0];
     pushAwemeId(candidates, awemeIdFromHistory());
     if (candidates.length) return candidates[0];
 
@@ -256,16 +307,12 @@
 
     if (lastActiveAwemeId) pushAwemeId(candidates, lastActiveAwemeId);
 
-    if (document.querySelector('video') && cache.size) {
-      [...cache.entries()].reverse().some(([, info]) => {
-        if (!info?.qualities?.length) return false;
-        pushAwemeId(candidates, info.id);
-        return true;
-      });
-    }
-
-    for (const info of cache.values()) {
-      if (info?.qualities?.length) pushAwemeId(candidates, info.id);
+    const active = pickActiveVideo(visibleVideos());
+    if (active) {
+      const sources = new Set(active.urls.map((url) => parse.unwrapPlayUrl(url)));
+      const matches = [...cache.values()].filter((info) => info.qualities?.some((quality) =>
+        quality.urls?.some((url) => sources.has(parse.unwrapPlayUrl(url)))));
+      if (matches.length === 1) return matches[0].id;
     }
 
     if (lastActiveAwemeId && candidates.includes(lastActiveAwemeId)) return lastActiveAwemeId;
@@ -936,7 +983,7 @@
   }
 
   function playingAwemeId() {
-    return parse.parseAwemeId(location.href) || lastActiveAwemeId || detectPageAwemeId(location.href) || '';
+    return parse.parseAwemeId(location.href) || detectPageAwemeId(location.href) || lastActiveAwemeId || '';
   }
 
   function tryPlayerResolve(id, target) {
@@ -955,7 +1002,7 @@
     const target = href || location.href;
     if (!parse.isDouyinHost(target)) throw new Error('不支持的作品地址');
     const hinted = /^\d{5,}$/.test(String(hintId || '')) ? String(hintId) : '';
-    const id = parse.parseAwemeId(target) || hinted || lastActiveAwemeId || detectPageAwemeId(target);
+    const id = parse.parseAwemeId(target) || hinted || detectPageAwemeId(target) || lastActiveAwemeId;
     log('识别', 'href=' + target);
     log('识别', 'awemeId=' + (id || '空'));
     if (!id) {
@@ -978,27 +1025,30 @@
       if (cache.has(id) && cache.get(id)?.qualities?.length) return ensureCover(cache.get(id));
       throw new Error('这一集还没有片源。请先在合集里点开该视频播放几秒，或刷新列表后再试');
     }
-    if (cache.has(id)) {
+    if (cache.get(id)?.qualities?.some((quality) => quality.urls?.length && Number(quality.qn) > 1)) {
       log('识别', '缓存命中 ' + id);
       return ensureCover(cache.get(id));
     }
-    let playerInfo = tryPlayerResolve(id, target);
-    if (playerInfo) return playerInfo;
-    for (let i = 0; i < 6; i += 1) {
-      await sleep(300);
+    // 播放器兜底只有「页面播放」一档，优先等接口/详情给出真实清晰度后再用。
+    const hasVisibleVideo = visibleVideos().length > 0;
+    const roundLimit = hasVisibleVideo ? 12 : 8;
+    for (let i = 0; i < roundLimit; i += 1) {
+      await sleep(hasVisibleVideo ? 400 : 300);
       hookNetwork();
-      if (i === 2 || i === 5) readRouterData(false);
-      log('识别', '等待 ' + (i + 1) + '/6 缓存=' + (cache.size ? [...cache.keys()].join(',') : '空'));
-      if (cache.has(id)) {
+      if (i === 2 || i === 5 || i === 9) readRouterData(false);
+      log('识别', '等待 ' + (i + 1) + '/' + roundLimit + ' 缓存=' + (cache.size ? [...cache.keys()].join(',') : '空'));
+      if (cache.get(id)?.qualities?.some((quality) => quality.urls?.length && Number(quality.qn) > 1)) {
         log('识别', '第 ' + (i + 1) + ' 次等到 ' + id);
         return ensureCover(cache.get(id));
       }
-      playerInfo = tryPlayerResolve(id, target);
-      if (playerInfo) return playerInfo;
-      if (i === 2) {
+      if (i === 2 || i === 6) {
         try {
           const fetched = await fetchAwemeDetail(id);
-          if (fetched) {
+          if (fetched?.qualities?.some((quality) => quality.urls?.length && Number(quality.qn) > 1)) {
+            log('识别', '详情直拉命中 ' + id);
+            return ensureCover(fetched);
+          }
+          if (fetched?.qualities?.length) {
             log('识别', '详情直拉命中 ' + id);
             return ensureCover(fetched);
           }
@@ -1016,8 +1066,11 @@
     } catch (error) {
       log('识别', '详情直拉失败 ' + (error?.message || error));
     }
-    playerInfo = tryPlayerResolve(id, target);
-    if (playerInfo) return playerInfo;
+    const playerInfo = tryPlayerResolve(id, target);
+    if (playerInfo) {
+      log('识别', '仅播放器兜底，无接口清晰度');
+      return playerInfo;
+    }
     dumpState(id);
     throw new Error('未识别到视频信息，请先播放当前视频或刷新页面');
   }
@@ -1601,8 +1654,8 @@
         case 'DETECT_AWEME_ID': {
           hookNetwork();
           const detectedId = parse.parseAwemeId(event.data.href || location.href)
-            || lastActiveAwemeId
-            || detectPageAwemeId(event.data.href);
+            || detectPageAwemeId(event.data.href)
+            || lastActiveAwemeId;
           reply(id, { type: 'OK', data: { id: detectedId || '' } });
           break;
         }

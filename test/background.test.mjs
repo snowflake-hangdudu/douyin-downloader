@@ -5,18 +5,30 @@ import vm from 'node:vm';
 const source = fs.readFileSync(new URL('../background.js', import.meta.url), 'utf8');
 const sender = { id: 'extension-id', url: 'https://www.douyin.com/video/7653794808998426996', tab: { id: 3, url: 'https://www.douyin.com/video/7653794808998426996' } };
 
-function createWorker({ items = {}, failHosts = [], shareInfos = [], firefox = false, blankExtensionId = false } = {}) {
+function createWorker({ items = {}, failHosts = [], shareInfos = [], firefox = false, blankExtensionId = false, session = {}, determineBeforeCallback = false } = {}) {
   let listener;
+  let filenameListener;
+  let changedListener;
   let nextId = 40;
-  const calls = { download: [], pause: [], resume: [], cancel: [], show: [], tabs: [] };
+  const calls = { download: [], pause: [], resume: [], cancel: [], show: [], tabs: [], suggestions: [] };
   const chrome = {
+    storage: { session: {
+      async get() { return { ...session }; },
+      async set(value) { Object.assign(session, value); },
+      async remove(key) { delete session[key]; }
+    } },
     runtime: { id: 'extension-id', lastError: null, onMessage: { addListener(fn) { listener = fn; } } },
     downloads: {
+      onDeterminingFilename: firefox ? undefined : { addListener(fn) { filenameListener = fn; } },
+      onChanged: { addListener(fn) { changedListener = fn; } },
       download(options, done) {
         calls.download.push(options);
         if (failHosts.includes(new URL(options.url).hostname)) { chrome.runtime.lastError = { message: 'network failed' }; done(); chrome.runtime.lastError = null; return; }
         const id = nextId++;
         items[id] = { id, byExtensionId: blankExtensionId ? '' : 'extension-id', state: 'in_progress', bytesReceived: 12, totalBytes: 100, paused: false, canResume: true, filename: options.filename, exists: false, mime: 'video/mp4' };
+        if (determineBeforeCallback) {
+          calls.suggestions.push(new Promise((resolve) => filenameListener({ ...items[id], url: options.url, filename: 'random-uuid.mp4' }, resolve)));
+        }
         done(id);
       },
       async search({ id }) { return items[id] ? [items[id]] : []; },
@@ -39,7 +51,10 @@ function createWorker({ items = {}, failHosts = [], shareInfos = [], firefox = f
       listener(msg, from, resolve);
     });
   }
-  return { send, calls, items, context };
+  return { send, calls, items, context, session,
+    suggest(item) { return new Promise((resolve) => filenameListener(item, resolve)); },
+    change(delta) { changedListener?.(delta); }
+  };
 }
 
 {
@@ -104,6 +119,69 @@ function createWorker({ items = {}, failHosts = [], shareInfos = [], firefox = f
   const missing = await worker.send({ type: 'DOUYIN_DL_FETCH_SHARE', awemeId: '7653794808998426997' });
   assert.equal(missing.ok, false);
   assert.match(missing.error, /对应视频/);
+}
+
+{
+  const worker = createWorker();
+  const url = 'blob:https://www.douyin.com/random-uuid';
+  const result = await worker.send({ type: 'DOUYIN_DL_SAVE_MEDIA', url, filename: '只有视频标题.mp4' });
+  const suggestion = await worker.suggest({ id: result.downloadId, url, byExtensionId: 'extension-id', filename: 'random-uuid.mp4' });
+  assert.equal(suggestion.filename, '只有视频标题.mp4');
+  assert.equal(suggestion.conflictAction, 'uniquify');
+  assert.equal(Object.keys(worker.session).length, 0);
+  assert.equal(await worker.suggest({ id: 100, url, byExtensionId: 'other-extension' }), undefined);
+}
+
+{
+  const worker = createWorker();
+  const url = 'https://v3.douyinvod.com/hash.mp4';
+  const results = await Promise.all(['第一个标题', '第二个标题'].map((filename) => worker.send({ type: 'DOUYIN_DL_SAVE_DIRECT', urls: [url], filename })));
+  // Even the same URL can have concurrent downloads with different templates.
+  for (const index of [1, 0]) {
+    const suggestion = await worker.suggest({ id: results[index].downloadId, url, byExtensionId: 'extension-id', filename: 'hash.mp4' });
+    assert.equal(suggestion.filename, ['第一个标题.mp4', '第二个标题.mp4'][index]);
+  }
+  assert.equal(Object.keys(worker.session).length, 0);
+
+  const session = {};
+  const beforeRestart = createWorker({ session });
+  const pending = await Promise.all(['重启任务甲', '重启任务乙'].map((filename) => beforeRestart.send({ type: 'DOUYIN_DL_SAVE_DIRECT', urls: [url], filename })));
+  const restarted = createWorker({ session });
+  const suggestions = await Promise.all([1, 0].map((index) => restarted.suggest({ id: pending[index].downloadId, url, byExtensionId: 'extension-id' })));
+  assert.equal(suggestions[0].filename, '重启任务乙.mp4');
+  assert.equal(suggestions[1].filename, '重启任务甲.mp4');
+  assert.equal(Object.keys(session).length, 0);
+}
+
+{
+  const session = {};
+  const worker = createWorker({ session });
+  const url = 'https://v3.douyinvod.com/restart.mp4';
+  const started = await worker.send({ type: 'DOUYIN_DL_SAVE_DIRECT', urls: [url], filename: '后台重启仍保留标题' });
+  const restarted = createWorker({ session });
+  const suggestion = await restarted.suggest({ id: started.downloadId, url, byExtensionId: 'extension-id', filename: 'restart.mp4' });
+  assert.equal(suggestion.filename, '后台重启仍保留标题.mp4');
+  assert.equal(Object.keys(session).length, 0);
+}
+
+{
+  const worker = createWorker({ determineBeforeCallback: true });
+  await worker.send({ type: 'DOUYIN_DL_SAVE_MEDIA', url: 'blob:https://www.douyin.com/early', filename: '早于回调的命名.mp4' });
+  const suggestion = await worker.calls.suggestions[0];
+  assert.equal(suggestion.filename, '早于回调的命名.mp4');
+  assert.equal(Object.keys(worker.session).length, 0);
+}
+
+{
+  const worker = createWorker({ failHosts: ['fail.douyinvod.com'] });
+  const failed = await worker.send({ type: 'DOUYIN_DL_SAVE_DIRECT', urls: ['https://fail.douyinvod.com/a.mp4'], filename: '失败任务' });
+  assert.equal(failed.ok, false);
+  await new Promise(setImmediate);
+  assert.equal(Object.keys(worker.session).length, 0);
+  const started = await worker.send({ type: 'DOUYIN_DL_SAVE_DIRECT', urls: ['https://v3.douyinvod.com/b.mp4'], filename: '取消任务' });
+  worker.change({ id: started.downloadId, state: { current: 'interrupted' } });
+  await new Promise(setImmediate);
+  assert.equal(Object.keys(worker.session).length, 0);
 }
 
 console.log('background tests passed');

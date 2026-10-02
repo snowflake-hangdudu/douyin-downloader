@@ -23,6 +23,10 @@ async function mount(t, options = {}) {
   const w = dom.window;
   const calls = [];
   const storage = { ...(options.storage || {}) };
+  w.chrome = { storage: { local: {
+    async get() { return { ...storage }; },
+    async set(value) { Object.assign(storage, value); }
+  } } };
   const copied = [];
   const pending = [];
   const pendingMix = [];
@@ -65,6 +69,10 @@ async function mount(t, options = {}) {
     if (data.type === 'RESOLVE_VIDEO') {
       const matched = String(data.href || '').match(/\/video\/(\d{5,})/);
       const info = matched ? byId(matched[1]) : (options.info || first);
+      if (options.failResolveIds?.has(info.id)) {
+        queueMicrotask(() => post({ source: 'douyin-dl-agent', id: data.id, type: 'ERR', error: '未识别到视频信息，请先播放当前视频或刷新页面' }));
+        return;
+      }
       const resolveCount = agentCalls.filter((item) => item.type === 'RESOLVE_VIDEO').length;
       const shouldDefer = options.deferResolve
         || (options.deferResolveIds?.has(info.id) && resolveCount > 1);
@@ -160,7 +168,7 @@ async function mount(t, options = {}) {
       return shellInstance;
     } }
   };
-  for (const file of ['lib/aweme-parse.js', 'lib/download-client.js', 'lib/filename.js', 'lib/download-settings.js', 'content/content.js']) {
+  for (const file of ['shared/i18n.js', 'lib/aweme-parse.js', 'lib/download-client.js', 'lib/filename.js', 'lib/download-settings.js', 'content/content.js']) {
     w.eval(readFileSync(new URL('../' + file, import.meta.url), 'utf8'));
   }
   await tick();
@@ -598,4 +606,34 @@ test('cover reports saved only when browser completes and does not double-submit
   finish({ ...completed, mime: 'image/webp' }); await tick();
   assert.equal(app.el('.dy-dl-status').classList.contains('hidden'), true);
   assert.equal(app.el('.dy-dl-cover-download').disabled, false);
+});
+
+
+test('failed recognition clears old filename and recovers when the current source arrives', async (t) => {
+  const app = await mount(t, { failResolveIds: new Set([second.id]) });
+  assert.match(app.el('.dy-dl-filename-preview').textContent, /第一个视频/);
+  app.navigate(second);
+  await wait(25);
+  assert.equal(app.el('.dy-dl-start').disabled, true);
+  assert.doesNotMatch(app.el('.dy-dl-filename-preview').textContent, /第一个视频/);
+  assert.equal(app.el('.dy-dl-retry-info').classList.contains('hidden'), false);
+  app.post({ source: 'douyin-dl-agent', type: 'VIDEO_AVAILABLE', data: { info: first } });
+  assert.equal(app.el('.dy-dl-start').disabled, true);
+  app.post({ source: 'douyin-dl-agent', type: 'VIDEO_AVAILABLE', data: { info: second } });
+  assert.equal(app.el('.dy-dl-video-title').textContent, second.title);
+  assert.equal(app.el('.dy-dl-start').disabled, false);
+  assert.match(app.el('.dy-dl-filename-preview').textContent, /第二个视频/);
+});
+
+test('English covers the download panel and changing language preserves video metadata', async (t) => {
+  const app = await mount(t, { storage: { 'douyin-dl-language-v1': 'en' } });
+  await tick();
+  assert.equal(app.el('.dy-dl-start-label').textContent, 'Start download');
+  assert.equal(app.el('.dy-dl-format-label').textContent, 'Format');
+  assert.equal(app.el('.dy-dl-cover-download').textContent, 'Download cover');
+  assert.equal(app.el('.dy-dl-video-title').textContent, first.title);
+  await app.w.DownloaderKit.i18n.save('zh-CN');
+  assert.equal(app.el('.dy-dl-start-label').textContent, '开始下载');
+  assert.equal(app.el('.dy-dl-cover-download').textContent, '下载封面');
+  assert.equal(app.el('.dy-dl-video-title').textContent, first.title);
 });

@@ -49,13 +49,103 @@ function preferredUrls(values) {
   return unique.sort((a, b) => Number(!/(^|\.)(douyinvod\.com|douyincdn\.com|bytecdn\.cn|bytevod\.com)$/i.test(new URL(a).hostname)) - Number(!/(^|\.)(douyinvod\.com|douyincdn\.com|bytecdn\.cn|bytevod\.com)$/i.test(new URL(b).hostname)));
 }
 
-function download(options) {
-  return new Promise((resolve, reject) => chrome.downloads.download(options, (id) => {
-    const error = chrome.runtime.lastError;
-    if (error) reject(new Error(error.message || '浏览器下载创建失败'));
-    else if (!Number.isInteger(id)) reject(new Error('浏览器没有返回下载编号'));
-    else resolve(id);
-  }));
+// Keep the requested name through Chromium's final filename determination.
+// Session storage survives an MV3 worker restart; Firefox uses download(options).
+const filenameIntents = new Map();
+const FILENAME_INTENT_PREFIX = 'douyinDlFilename:';
+const filenameEvent = chrome.downloads.onDeterminingFilename;
+let filenameSequence = 0;
+let filenameRestore;
+
+function persistFilenameIntent(intent, remove = false) {
+  const session = chrome.storage?.session;
+  if (!session) return Promise.resolve();
+  const value = { id: intent.id, url: intent.url, filename: intent.filename, createdAt: intent.createdAt };
+  // Serialize writes and removal so a late callback cannot resurrect a record.
+  intent.io = (intent.io || Promise.resolve()).then(() => remove
+    ? session.remove(intent.key)
+    : session.set({ [intent.key]: value })).catch(() => {});
+  return intent.io;
+}
+
+function forgetFilenameIntent(intent) {
+  filenameIntents.delete(intent.key);
+  return persistFilenameIntent(intent, true);
+}
+
+async function determineFilename(item) {
+  if (item.byExtensionId !== chrome.runtime.id) return undefined;
+  const find = () => [...filenameIntents.values()].find((entry) => entry.id === item.id)
+    || [...filenameIntents.values()].find((entry) => entry.id === null && entry.url === item.url);
+  let intent = find();
+  if (!intent && chrome.storage?.session) {
+    // Hydrate once per worker, including concurrent filename events. A second
+    // storage snapshot must not restore an intent another event just consumed.
+    filenameRestore ||= (async () => {
+      const stored = await chrome.storage.session.get(null);
+      for (const [key, entry] of Object.entries(stored || {})) {
+        if (!key.startsWith(FILENAME_INTENT_PREFIX) || filenameIntents.has(key)) continue;
+        if (!entry || !Number.isFinite(entry.createdAt) || Date.now() - entry.createdAt > 86400000) {
+          await chrome.storage.session.remove(key);
+          continue;
+        }
+        if (typeof entry.filename === 'string' && typeof entry.url === 'string') {
+          filenameIntents.set(key, { ...entry, key });
+        }
+      }
+    })();
+    await filenameRestore;
+    intent = find();
+  }
+  if (!intent) return undefined;
+  intent.id = item.id;
+  const suggestion = { filename: intent.filename, conflictAction: 'uniquify' };
+  await forgetFilenameIntent(intent);
+  return suggestion;
+}
+
+if (filenameEvent?.addListener) {
+  filenameEvent.addListener((item, suggest) => {
+    determineFilename(item).then(suggest, () => suggest());
+    return true;
+  });
+  chrome.downloads.onChanged?.addListener((delta) => {
+    if (!['complete', 'interrupted'].includes(delta.state?.current)) return;
+    for (const intent of filenameIntents.values()) {
+      if (intent.id === delta.id) forgetFilenameIntent(intent);
+    }
+  });
+}
+
+async function download(options) {
+  let intent;
+  if (filenameEvent?.addListener) {
+    intent = {
+      key: FILENAME_INTENT_PREFIX + Date.now() + ':' + (++filenameSequence) + ':' + Math.random().toString(36).slice(2),
+      id: null, url: options.url, filename: options.filename, createdAt: Date.now()
+    };
+    filenameIntents.set(intent.key, intent);
+    await persistFilenameIntent(intent);
+  }
+  return new Promise((resolve, reject) => {
+    const failed = (error) => {
+      if (intent) forgetFilenameIntent(intent);
+      reject(error);
+    };
+    try {
+      chrome.downloads.download(options, (id) => {
+        const error = chrome.runtime.lastError;
+        if (error) return failed(new Error(error.message || '浏览器下载创建失败'));
+        if (!Number.isInteger(id)) return failed(new Error('浏览器没有返回下载编号'));
+        if (intent && filenameIntents.has(intent.key)) {
+          intent.id = id;
+          persistFilenameIntent(intent).then(() => resolve(id));
+          return;
+        }
+        resolve(id);
+      });
+    } catch (error) { failed(error); }
+  });
 }
 
 async function ownedDownload(id) {

@@ -23,7 +23,9 @@
       iconUrl: opts.iconUrl || api.runtime.getURL('icons/icon128.png'),
       fabLabel: opts.fabLabel,
       backLabel: opts.backLabel,
-      footer: opts.footer,
+      // Announcements are intentionally disabled for this product. Remote
+      // content may still be fetched for other sections, but cannot add it back.
+      footer: { ...(opts.footer || {}), showNotice: false },
       showDebug,
       onOpenSheet: openSheet,
       onShowHome() { currentSheet = ''; },
@@ -77,20 +79,25 @@
     }
 
     function applyRemoteButtons() {
-      panel.setSheetEnabled('notice', remoteContent.notice?.enabled !== false);
+      panel.setSheetEnabled('notice', false);
       if (!rating.enabled()) panel.setRating({ visible: false });
     }
 
     function openSheet(key) {
       if (key === 'coop') key = 'notice';
+      if (key === 'notice') return;
       if (key === 'donate') {
         currentSheet = key;
-        panel.openSheet(key, { title: '感谢您的支持与赞赏' });
+        panel.openSheet(key, { title: kit.i18n?.t?.('thanks') || '感谢您的支持与赞赏' });
         return;
       }
       currentSheet = key;
       if (key === 'settings') {
-        panel.openSheet(key, { title: '设置', subtitle: '主题与文件名会同步到下载面板' });
+        const translate = kit.i18n?.t;
+        panel.openSheet(key, {
+          title: translate ? translate('settings') : '设置',
+          subtitle: translate ? translate('settingsHint') : '主题与文件名会同步到下载面板'
+        });
         return;
       }
       panel.openSheet(key, remoteContent[key] || defaults[key]);

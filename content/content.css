@@ -648,6 +648,23 @@
   color: var(--dl-primary);
 }
 
+/* Leave the right-hand Douyin controls clear; keep the open menu at the edge. */
+#douyin-dl-panel {
+  right: 108px;
+  bottom: 120px;
+}
+
+#douyin-dl-menu {
+  right: -84px;
+}
+
+@media (max-width: 640px) {
+  #douyin-dl-panel {
+    right: 96px;
+    bottom: 88px;
+  }
+}
+
 /* 与 B 站一致：外框固定高度，主页面/公告/设置共用，避免切换时高度闪烁。 */
 #douyin-dl-panel[data-theme] #douyin-dl-menu,
 #douyin-dl-menu {
@@ -1126,7 +1143,8 @@
   font-size: 12px;
 }
 
-.dy-dl-settings-theme-control {
+.dy-dl-settings-theme-control,
+.dy-dl-settings-control {
   position: relative;
   z-index: 2;
   width: 210px;
@@ -1134,26 +1152,45 @@
   flex: 0 1 210px;
 }
 
-.dy-dl-settings-theme-trigger {
-  display: flex;
-  align-items: center;
-  gap: 8px;
+.dy-dl-settings-theme-trigger,
+.dy-dl-settings-select {
+  box-sizing: border-box;
   width: 100%;
   min-width: 0;
   min-height: 30px;
-  padding: 4px 8px;
+  padding: 4px 26px 4px 8px;
   border: 1px solid var(--border, #e5e7eb);
   border-radius: 7px;
   background: var(--surface, #f7f8fa);
   color: var(--text-primary, #18181b);
   font: inherit;
   font-size: 11px;
+  line-height: 1.35;
+}
+
+.dy-dl-settings-theme-trigger {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding-right: 8px;
   text-align: left;
   cursor: pointer;
 }
 
 .dy-dl-settings-theme-trigger:hover,
-.dy-dl-settings-theme-trigger[aria-expanded="true"] {
+.dy-dl-settings-theme-trigger[aria-expanded="true"],
+.dy-dl-settings-select:hover {
+  border-color: var(--brand-border, #9ddcfa);
+}
+
+.dy-dl-settings-select:focus {
+  outline: none;
+}
+
+.dy-dl-settings-select:focus-visible,
+.dy-dl-settings-theme-trigger:focus-visible {
+  outline: 2px solid var(--brand-strong, #11131b);
+  outline-offset: 1px;
   border-color: var(--brand-border, #9ddcfa);
 }
 
@@ -1195,10 +1232,17 @@
   border-right: 1.5px solid currentColor;
   border-bottom: 1.5px solid currentColor;
   transform: rotate(45deg);
+  transition: transform 0.15s ease, margin 0.15s ease;
+}
+
+.dy-dl-settings-theme-trigger[aria-expanded="true"] .dy-dl-settings-theme-chevron {
+  margin-top: 2px;
+  transform: rotate(-135deg);
 }
 
 .dy-dl-settings-theme-options {
   position: absolute;
+  z-index: 1;
   top: calc(100% + 4px);
   right: 0;
   left: 0;
@@ -1238,17 +1282,33 @@
   color: var(--brand-strong);
 }
 
+.dy-dl-settings-select-wrap {
+  position: relative;
+  width: 100%;
+}
+
+.dy-dl-settings-select-wrap::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  right: 10px;
+  width: 7px;
+  height: 7px;
+  margin-top: -5px;
+  border-right: 1.5px solid currentColor;
+  border-bottom: 1.5px solid currentColor;
+  transform: rotate(45deg);
+  pointer-events: none;
+}
+
 .dy-dl-settings-select {
-  max-width: 210px;
-  min-width: 0;
-  flex: 1;
-  padding: 5px 8px;
-  border: 1px solid var(--border, #e5e7eb);
-  border-radius: 7px;
-  background: var(--surface, #f7f8fa);
-  color: var(--text-primary, #18181b);
-  font: inherit;
-  font-size: 11px;
+  appearance: none;
+  -webkit-appearance: none;
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  cursor: pointer;
 }
 
 .dy-dl-settings-custom {

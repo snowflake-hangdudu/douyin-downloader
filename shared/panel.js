@@ -12,7 +12,10 @@
     if (!dom) throw new Error('DownloaderKit.dom is required');
 
     const idPrefix = opts.idPrefix || 'dl-kit';
-    const title = opts.title || '下载助手';
+    const i18n = globalThis.DownloaderKit?.i18n;
+    const tr = (key, values) => i18n?.t?.(key, values) || key;
+    const titleSource = opts.title || '下载助手';
+    const title = i18n?.translateText?.(titleSource) || titleSource;
     const iconUrl = String(opts.iconUrl || '');
     const footer = opts.footer || {};
 
@@ -66,7 +69,7 @@
     close.type = 'button';
     close.className = 'dl-kit-close';
     close.id = idPrefix + '-close';
-    close.setAttribute('aria-label', '关闭');
+    close.setAttribute('aria-label', tr('close'));
     close.textContent = '×';
     header.append(headerLeft, close);
 
@@ -82,7 +85,7 @@
     const pageBack = doc.createElement('button');
     pageBack.type = 'button';
     pageBack.className = 'dl-kit-page-back';
-    pageBack.textContent = opts.backLabel || '返回下载';
+    pageBack.textContent = opts.backLabel ? (i18n?.translateText?.(opts.backLabel) || opts.backLabel) : tr('backToDownload');
     const pageTitle = dom.appendTextElement(page, 'div', 'dl-kit-page-title', '');
     pageTitle.id = idPrefix + '-info-title';
     const pageDate = dom.appendTextElement(page, 'div', 'dl-kit-info-date', '');
@@ -131,25 +134,25 @@
     rating.className = 'dl-kit-store-rating hidden';
     rating.id = idPrefix + '-store-rating';
     rating.setAttribute('role', 'note');
-    dom.appendTextElement(rating, 'div', 'dl-kit-store-rating-title', '下载搞定 ⭐ 给个好评呗');
-    const ratingText = dom.appendTextElement(rating, 'div', 'dl-kit-store-rating-text', '用着顺手的话，去商店点个分。');
+    dom.appendTextElement(rating, 'div', 'dl-kit-store-rating-title', tr('ratingTitle'));
+    const ratingText = dom.appendTextElement(rating, 'div', 'dl-kit-store-rating-text', tr('ratingText', { store: '' }));
     const ratingPrimary = doc.createElement('button');
     ratingPrimary.type = 'button';
     ratingPrimary.className = 'dl-kit-store-rating-primary';
     ratingPrimary.dataset.action = 'rate';
-    ratingPrimary.textContent = '去商店评分 ⭐';
+    ratingPrimary.textContent = tr('rateStore', { store: '' });
     const ratingActions = doc.createElement('div');
     ratingActions.className = 'dl-kit-store-rating-actions';
     const ratingLater = doc.createElement('button');
     ratingLater.type = 'button';
     ratingLater.className = 'dl-kit-store-rating-ghost';
     ratingLater.dataset.action = 'later';
-    ratingLater.textContent = '下次再说';
+    ratingLater.textContent = tr('later');
     const ratingNever = doc.createElement('button');
     ratingNever.type = 'button';
     ratingNever.className = 'dl-kit-store-rating-ghost';
     ratingNever.dataset.action = 'never';
-    ratingNever.textContent = '别再问了';
+    ratingNever.textContent = tr('never');
     ratingActions.append(ratingLater, ratingNever);
     rating.append(ratingPrimary, ratingActions);
 
@@ -168,7 +171,7 @@
       if (icon) btn.insertAdjacentHTML('afterbegin', icon);
       const text = doc.createElement('span');
       text.className = 'dl-kit-footer-label';
-      text.textContent = label;
+      i18n?.setText?.(text, label) || (text.textContent = label);
       btn.appendChild(text);
       return btn;
     }
@@ -180,7 +183,7 @@
       a.rel = 'noopener noreferrer';
       const text = doc.createElement('span');
       text.className = 'dl-kit-footer-label';
-      text.textContent = label;
+      i18n?.setText?.(text, label) || (text.textContent = label);
       a.appendChild(text);
       if (href) dom.safeExternalLink(a, href);
       return a;
@@ -190,8 +193,8 @@
     footerEl.className = 'dl-kit-footer';
     const links = doc.createElement('div');
     links.className = 'dl-kit-footer-links';
-    const noticeLink = footerAction('notice', footer.noticeLabel || '公告', ICONS.notice);
-    const settingsLink = footerAction('settings', footer.settingsLabel || '设置', ICONS.settings);
+    const noticeLink = footerAction('notice', footer.noticeLabel || tr('notice'), ICONS.notice);
+    const settingsLink = footerAction('settings', footer.settingsLabel || tr('settings'), ICONS.settings);
     const email = footer.email || 'hangdudu0@agent.qq.com';
     const subject = footer.subject || (title + '反馈');
     const feedback = doc.createElement(footer.feedbackMode === 'copy' ? 'button' : 'a');
@@ -199,26 +202,25 @@
     if (footer.feedbackMode === 'copy') {
       feedback.type = 'button';
       feedback.dataset.feedbackEmail = email;
-      feedback.title = '点击复制反馈邮箱 ' + email;
+      feedback.title = tr('copyFeedbackEmail', { email });
       feedback.insertAdjacentHTML('afterbegin', ICONS.feedback);
       const feedbackLabel = doc.createElement('span');
       feedbackLabel.className = 'dl-kit-feedback-label';
-      feedbackLabel.textContent = footer.feedbackShortLabel || '反馈';
+      i18n?.setText?.(feedbackLabel, footer.feedbackShortLabel || '反馈') || (feedbackLabel.textContent = footer.feedbackShortLabel || tr('feedback'));
       feedback.appendChild(feedbackLabel);
     } else {
       dom.safeExternalLink(feedback, 'mailto:' + email + '?subject=' + encodeURIComponent(subject));
-      feedback.textContent = footer.feedbackLabel || ('反馈邮箱：' + email);
+      feedback.textContent = footer.feedbackLabel || tr('feedbackEmail', { email });
     }
-    links.append(noticeLink);
+    if (footer.showNotice !== false) links.append(noticeLink);
     if (footer.showSettings === true) links.append(settingsLink);
     if (footer.showHelpLinks !== false) {
-      links.append(externalLink(footer.faqUrl, footer.faqLabel || '常见问题'));
-      links.append(externalLink(footer.privacyUrl, footer.privacyLabel || '隐私政策'));
+      links.append(externalLink(footer.faqUrl, footer.faqLabel || tr('faq')));
+      links.append(externalLink(footer.privacyUrl, footer.privacyLabel || tr('privacy')));
     }
     links.append(feedback);
     if (footer.showDonate) {
-      const donateLink = footerAction('donate', footer.donateLabel || '赞赏', ICONS.donate);
-      donateLink.title = '自愿赞赏';
+      const donateLink = footerAction('donate', footer.donateLabel || tr('donate'), ICONS.donate);
       links.append(donateLink);
     }
     footerEl.append(links);
@@ -259,12 +261,12 @@
 
     function openSheet(key, item) {
       const data = item || {};
-      pageTitle.textContent = data.title || (key === 'settings' ? '设置' : '公告');
+      pageTitle.textContent = data.title ? (i18n?.translateText?.(data.title) || data.title) : (key === 'settings' ? tr('settings') : tr('notice'));
       if (data.subtitle) {
         pageDate.textContent = data.subtitle;
         pageDate.hidden = false;
       } else if (data.updated) {
-        pageDate.textContent = '更新：' + data.updated;
+        pageDate.textContent = tr('updateAt', { value: data.updated });
         pageDate.hidden = false;
       } else {
         pageDate.textContent = '';
@@ -288,8 +290,9 @@
     function setRating(state) {
       const next = state || {};
       const label = next.storeLabel || 'Edge';
-      ratingText.textContent = '用着顺手的话，去 ' + label + ' 商店点个分。';
-      ratingPrimary.textContent = '去 ' + label + ' 商店评分 ⭐';
+      rating.dataset.storeLabel = label;
+      ratingText.textContent = tr('ratingText', { store: label });
+      ratingPrimary.textContent = tr('rateStore', { store: label });
       rating.classList.toggle('hidden', !next.visible);
     }
 
@@ -323,6 +326,37 @@
       btn.addEventListener('click', () => opts.onRatingAction?.(btn.dataset.action));
     });
     doc.body.appendChild(rootEl);
+    function applyLanguage() {
+      if (!i18n) return;
+      const text = (selector, value) => {
+        const element = rootEl.querySelector(selector);
+        if (element) element.textContent = value;
+      };
+      const attr = (selector, name, value) => {
+        const element = rootEl.querySelector(selector);
+        if (element) element.setAttribute(name, value);
+      };
+      i18n.translateDom(rootEl);
+      text('.dl-kit-title', i18n.translateText?.(titleSource) || titleSource);
+      text('.dl-kit-page-back', tr('backToDownload'));
+      attr('.dl-kit-close', 'aria-label', tr('close'));
+      attr('.dl-kit-menu', 'aria-label', i18n.translateText?.(titleSource) || titleSource);
+      attr('.dl-kit-toggle', 'title', i18n.translateText?.(titleSource) || titleSource);
+      text('.dl-kit-store-rating-title', tr('ratingTitle'));
+      const storeLabel = rating.dataset.storeLabel || 'Edge';
+      text('.dl-kit-store-rating-text', tr('ratingText', { store: storeLabel }));
+      text('.dl-kit-store-rating-primary', tr('rateStore', { store: storeLabel }));
+      text('[data-action="later"]', tr('later'));
+      text('[data-action="never"]', tr('never'));
+      if (!footer.noticeLabel) text('[data-sheet="notice"] .dl-kit-footer-label', tr('notice'));
+      if (!footer.settingsLabel) text('[data-sheet="settings"] .dl-kit-footer-label', tr('settings'));
+      if (!footer.feedbackShortLabel) text('.dl-kit-feedback-label', tr('feedback'));
+      if (footer.feedbackMode === 'copy') attr('.dl-kit-feedback', 'title', tr('copyFeedbackEmail', { email }));
+      else if (!footer.feedbackLabel) text('.dl-kit-feedback', tr('feedbackEmail', { email }));
+      if (!footer.donateLabel) text('[data-sheet="donate"] .dl-kit-footer-label', tr('donate'));
+    }
+    const offLanguageChange = i18n?.onChange?.(applyLanguage);
+    i18n?.ready?.then?.(applyLanguage)?.catch?.(() => {});
 
     return {
       root: rootEl,
@@ -337,6 +371,7 @@
       setRating,
       destroy: () => {
         doc.removeEventListener('keydown', onKeydown);
+        offLanguageChange?.();
         rootEl.remove();
       }
     };
